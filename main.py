@@ -88,29 +88,15 @@ plt.show()
 
 # TODO: obvs clean this up
 
+# DOn't need two functions here.
 def interpolateV(v):
     return (v[:-1, :-1] + v[1:, :-1] + v[:-1, 1:] + v[1:, 1:])/4
 
 def interpolateU(u):
     return (u[:-1, :-1] + u[1:, :-1] + u[:-1, 1:] + u[1:, 1:])/4
 
-def du_dx(u):
-    return (u[:, 1:] - u[:, :-1]) / d
-
-def dv_dy(v):
-    return (v[1:, :] - v[:-1, :]) / d
-
-def deta_dx(h):
-    return (h[:, 1:] - h[:, :-1])/d
-
-def deta_dy(h):
-    return (h[1:, :] - h[:-1, :])/d
-
-# Wind stress
-tau = lambda y: tau0 * np.array([-np.cos(np.pi*y/L), 0.])
-
 # Calculate wind stress.
-tauX = - np.cos(np.pi*YS[:, 0]/L)
+tauX = - np.cos(np.pi*YS/L)
 tauY = np.zeros_like(tauX)
 
 # Set up c grid fields (already includes boundary and initial conditions)
@@ -119,66 +105,67 @@ vField = np.zeros(shape=(ny+1, nx))
 hField = np.zeros(shape=(nx, ny))
 
 dt = 350  # seconds
-nt = 100
+nt = int(24*60**2/350)
 
-# Coriolis parameter (f=0 at y=0).
-f = f0 + beta*YS[:, 0]
+# Coriolis parameter (f=f0 at y=0).
+f = f0 + beta*YS
 
 for t in range(nt):
     
     # Calculate velocity gradients throughout the domain.
-    dudx = du_dx(uField)
-    dvdy = dv_dy(vField)
+    dudx = (uField[:, 1:] - uField[:, :-1]) / d
+    dvdy = (vField[1:, :] - vField[:-1, :]) / d
         
     # Calculate new eta.
     hField2 = hField - H*dt*(dudx + dvdy)
     
     # Calculate eta derivates for updated time step.
-    detadx = deta_dx(hField2)
-    detady = deta_dy(hField2)
+    detadx = (hField2[:, 1:] - hField2[:, :-1])/d
+    detady = (hField2[1:, :] - hField2[:-1, :])/d
     
-    # if t % 2 == 0:
-    if t != -1:
+    if t % 2 == 0:
+    # if t != -1:
         # Interploate v on u-grid.
         vInterp = interpolateV(vField)
         
         # Calculate new u.
         uField2 = uField.copy()  # Include the boundary conditions.
-        uField2[:, 1:-1] += dt*(f[1:, np.newaxis]*vInterp - g*detadx - 
+        uField2[:, 1:-1] += dt*(f[:-1, 1:-1]*vInterp - g*detadx - 
                                 gamma*uField[:, 1:-1] + 
-                                tauX[1:, np.newaxis]/(rho*H))
+                                tauX[:-1, 1:-1]/(rho*H))
+        
         
         # Update interpolated values of u.
         uInterp = interpolateU(uField2)
         
         # Calculate new v.
         vField2 = vField.copy() # Include the boundary conditions.
-        vField2[1:-1, :] += dt*(f[1:-1, np.newaxis]*uInterp - g*detady - 
+        vField2[1:-1, :] += dt*(-f[1:-1,:-1]*uInterp - g*detady - 
                                 gamma*vField[1:-1, :] 
                                 # + 
                                 # tauY[1:-1, np.newaxis]/(rho*H)
                                 )
-    # else:
+    else:
         
-    #     # Interpolate u on v-grid.
-    #     uInterp = interpolateU(uField)
+        # Interpolate u on v-grid.
+        uInterp = interpolateU(uField)
         
-    #     # Calculate new v.
-    #     vField2 = vField.copy() # Include the boundary conditions.
-    #     vField2[1:-1, :] += dt*(f[1:-1, np.newaxis]*uInterp - g*detady - 
-    #                             gamma*vField[1:-1, :] 
-    #                             # + 
-    #                             # tauY[1:-1, np.newaxis]/(rho*H)
-    #                             )
+        # Calculate new v.
+        vField2 = vField.copy() # Include the boundary conditions.
+        vField2[1:-1, :] += dt*(-f[1:-1,:-1]*uInterp - g*detady - 
+                                gamma*vField[1:-1, :] 
+                                # + 
+                                # tauY[1:-1, np.newaxis]/(rho*H)
+                                )
         
-    #     # Update interpolated values of v.
-    #     vInterp = interpolateV(vField2)
+        # Update interpolated values of v.
+        vInterp = interpolateV(vField2)
         
-    #     # Calculate new u.
-    #     uField2 = uField.copy()  # Include the boundary conditions.
-    #     uField2[:, 1:-1] += dt*(f[1:, np.newaxis]*vInterp - g*detadx - 
-    #                             gamma*uField[:, 1:-1] + 
-    #                             tauX[1:, np.newaxis]/(rho*H))
+        # Calculate new u.
+        uField2 = uField.copy()  # Include the boundary conditions.
+        uField2[:, 1:-1] += dt*(f[:-1, 1:-1]*vInterp - g*detadx - 
+                                gamma*uField[:, 1:-1] + 
+                                tauX[:-1, 1:-1]/(rho*H))
         
     # Update values.
     hField = hField2 
