@@ -86,6 +86,10 @@ plt.show()
 
 #%% TASK D
 
+# Energy function for TASK E
+def calculateEnergy(u, v, eta):
+    return np.sum(0.5*rho*(u[:, :-1]**2 + v[:-1, :]**2 + g*eta**2))*d**2
+
 # TODO: obvs clean this up
 
 # DOn't need two functions here.
@@ -105,7 +109,7 @@ vField = np.zeros(shape=(ny+1, nx))
 hField = np.zeros(shape=(nx, ny))
 
 dt = 350  # seconds
-nt = int(24*60**2/350)
+nt = 10000
 
 # Coriolis parameter (f=f0 at y=0).
 f = f0 + beta*YS
@@ -192,4 +196,32 @@ plt.colorbar(cont3, location='bottom')
 axs[2].set_xlabel("X", fontsize=25)
 axs[2].set_title("$\eta$", fontsize=25)
 
+plt.show()
+
+#%% Plot the thing
+fig, axs = plt.subplots(2, 2, figsize=(24, 24))
+
+# u vs x along the grid, closest to the southern edge of the basin.
+axs[0, 0].plot(XS[0, :], uField[0, :])
+axs[0, 0].set_title('u vs x')
+
+# v vs y along the grid, closest to the western edge of the basin.
+axs[0, 1].plot(YS[:, 0], vField[:, 0])
+axs[0, 1].set_title('v vs y')
+
+# eta vs x through the middle of the gyre.
+axs[1, 0].plot(XS[0, :-1], hField[10, :])
+axs[1, 0].set_title('eta vs x')
+
+# 2D contour plot showing elevation eta.
+axs[1, 1].imshow(hField, extent=[XS.min(), XS.max(), YS.min(), YS.max()], origin='lower', aspect='auto')
+axs[1, 1].set_title('2D Contour Plot')
+axs[1, 1].set_xlabel('x')
+axs[1, 1].set_ylabel('y')
+
+# Add colorbar for the 2D contour plot
+cbar = plt.colorbar(axs[1, 1].imshow(hField, origin='lower', aspect='auto'), ax=axs[1, 1])
+cbar.set_label('Elevation (eta)')
+
+plt.tight_layout()
 plt.show()
