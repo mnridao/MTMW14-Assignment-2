@@ -108,6 +108,14 @@ uField = np.zeros(shape=(ny, nx+1))
 vField = np.zeros(shape=(ny+1, nx))
 hField = np.zeros(shape=(nx, ny))
 
+# # Calculate the Gaussian perturbation
+# h_perturbation = 5 * np.exp(-((XS[:-1, :-1] - 5e5)**2 / (2 * 50e3**2) + (YS[:-1, :-1] - 5e5)**2 / (2 * 50e3**2)))
+
+# # Add the perturbation to the initial condition
+# hField += h_perturbation
+
+#%%
+
 dt = 350  # seconds
 nt = 10000
 
@@ -175,6 +183,28 @@ for t in range(nt):
     hField = hField2 
     uField = uField2 
     vField = vField2
+    
+    # # Plot contours
+    # fig, axs = plt.subplots(1, 3, figsize=(32, 13))
+
+    # cont1 = axs[0].imshow(uField)
+    # plt.colorbar(cont1, location='bottom')
+    # axs[0].set_xlabel("X", fontsize=25)
+    # axs[0].set_ylabel("Y", fontsize=25)
+    # axs[0].set_title("u", fontsize=25)
+        
+    # cont2 = axs[1].imshow(vField)
+    # plt.colorbar(cont2, location='bottom')
+    # axs[1].set_xlabel("X", fontsize=25)
+    # axs[1].set_title("v", fontsize=25)
+
+    # cont3 = axs[2].imshow(hField)
+    # plt.colorbar(cont3, location='bottom')
+    # # axs[2].contour(XS, YS, uSol, colors='black')
+    # axs[2].set_xlabel("X", fontsize=25)
+    # axs[2].set_title("$\eta$", fontsize=25)
+
+    # plt.show()
     
 # Plot contours
 fig, axs = plt.subplots(1, 3, figsize=(32, 13))
