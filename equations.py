@@ -4,13 +4,17 @@ MTMW14 Assignment 2
 Student ID: 31827379
 """
 
-class Parameters(object):
+from abc import ABC, abstractmethod
+import numpy as np
+
+class Parameters:
     """ 
     """
     
     def __init__(self):
         
-        self.isWindStressOn = True
+        # self.windStressActivated = True # Not used atm.
+        self.betaPlaneActivated  = True
         
         ## DEFAULT PARAMETERS ##
         
@@ -21,11 +25,47 @@ class Parameters(object):
         self.rho   = 1000  # Density of water [kgm^-3]
         self.H     = 1000  # Height [m]
 
-        ## FORCING PARAMETERS ##
+        ## DEFAULT FORCING PARAMETERS ##
+        self.setDefaultWindStress()
         
-        self.tau0 = 0.2   # Wind stress amplitude [Nm^-2]
+    def updateParameters(self):
+        pass
         
-class BaseEqnSWE(object):
+    def setDefaultWindStress(self):
+        """ 
+        """
+        self.tau0 = 0.2                  # Wind stress amplitude [Nm^-2]
+        self.setWindStressX("default")
+        self.setWindStressY("default")
+    
+    def turnOffWindStress(self):
+        """ 
+        """
+        self.setWindStressX("off")
+        self.setWindStressY("off")
+    
+    def setWindStressX(self, key, tau=None):
+        """ 
+        """
+        if key == "default":
+            self.tauX = lambda Y, L: - self.tau0*np.cos(np.pi*Y/L)
+            
+        elif key == "off":
+            self.tauX = lambda Y, L: np.zeros_like(Y)
+        
+        elif key == "custom" and tau != None:
+            self.tauX = tau
+        
+    def setWindStressY(self, key, tau=None):
+        """ 
+        """
+        if key == "default" or key == "off":
+            self.tauY = lambda Y: np.zeros_like(Y)
+        
+        elif key == "custom" and tau != None:
+            self.tauY = tau
+        
+class BaseEqnSWE(ABC):
     """ 
     """
     
@@ -34,18 +74,19 @@ class BaseEqnSWE(object):
         # Contains the default parameters for the SWE.
         self.params = Parameters()
     
-    def __call__(self, u, v, eta):
-        """ 
+    def __call__(self, grid):
+        """
         Something like this...
         
         pass in time parameters if needed."""
         
         # Update parameters if neccesary.
-        # params.updateParams() or smt
+        # params.updateParams()
         
-        return self._f(u, v, eta)
+        return self._f(grid)
     
-    def _f(self, u, v, eta):
+    @abstractmethod
+    def _f(self, state):
         pass
     
 class UVelocity(BaseEqnSWE):
@@ -54,10 +95,22 @@ class UVelocity(BaseEqnSWE):
     
     def __init__(self):
         super().__init__() 
+                
+    def _f(self, grid):
+        """ 
+        """        
+        # Height perturbation gradient in x-direction.
+        detadx = (grid.hField[:, 1:] - grid.hField[:, :-1])/grid.dx
+
+        # Coriolis parameter.
+        f = self.params.f0 + self.params.beta*grid.Y
         
-    def _f(self, u, v, eta):
+        # Wind forcing in x-direction.
+        tauX = self.params.tauX(grid.Y, grid.xbounds[1])
         
-        pass
+        return (f[:-1, 1:-1]*grid.vOnUField() - self.params.g*detadx - 
+                self.params.gamma*grid.uField[:, 1:-1] + 
+                tauX[:-1, 1:-1]/(self.params.rho*self.params.H))
         
 class VVelocity(BaseEqnSWE):
     """ 
@@ -66,15 +119,35 @@ class VVelocity(BaseEqnSWE):
     def __init__(self):
         super().__init__()
         
-    def _f(self, u, v, eta):
-        pass
+    def _f(self, grid):
+        """ 
+        """        
+        # Height perturbation gradient in y-direction.
+        detady = (grid.hField[1:, :] - grid.hField[:-1, :])/grid.dy
+
+        # Coriolis parameter.
+        f = self.params.f0 + self.params.beta*grid.Y
+        
+        # Wind forcing in y-direction.
+        tauY = self.params.tauY(grid.Y)
+                
+        return (-f[1:-1,:-1]*grid.uOnVField() - self.params.g*detady - 
+                self.params.gamma*grid.vField[1:-1, :] + 
+                tauY[1:-1,:-1]/(self.params.rho*self.params.H))
         
 class Eta(BaseEqnSWE):
     """ 
     """
-    
+
     def __init__(self):
         super().__init__()
         
-    def _f(self, u, v, eta):
-        pass
+    def _f(self, grid):
+        """ 
+        """
+        # Calculate velocity gradients throughout the domain.
+        dudx = (grid.uField[:, 1:] - grid.uField[:, :-1]) / grid.dx
+        dvdy = (grid.vField[1:, :] - grid.vField[:-1, :]) / grid.dy
+        
+        # Calculate new height perturbation.
+        return - self.params.H*(dudx + dvdy)

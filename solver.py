@@ -6,9 +6,14 @@ Student ID: 31827379
 
 import numpy as np
 
-# TODO: This was solver class for assignment 1, will need to be changed.
+# TODO: This was for assignment 1, will need to be changed.
 
-class Solver(object):
+class Model:
+    
+    def __init__(self):
+        pass
+
+class Solver:
     
     def __init__(self, model, scheme, dt, nt, store=False):
         """ 

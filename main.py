@@ -7,9 +7,6 @@ Student ID: 31827379
 import numpy as np
 import matplotlib.pyplot as plt
 
-# Don't set boundary conditions every time step (should stay at zero if i 
-# do it right)
-
 # DEFAULT PARAMETERS
 f0 = 1e-4    # Coriolis parameter [s^-1]
 beta = 1e-11  # Coriolis parameter gradient [m^-1s^-1] 
@@ -100,7 +97,7 @@ def interpolateU(u):
     return (u[:-1, :-1] + u[1:, :-1] + u[:-1, 1:] + u[1:, 1:])/4
 
 # Calculate wind stress.
-tauX = - np.cos(np.pi*YS/L)
+tauX = tau0 * - np.cos(np.pi*YS/L)
 tauY = np.zeros_like(tauX)
 
 # Set up c grid fields (already includes boundary and initial conditions)
@@ -117,11 +114,13 @@ hField = np.zeros(shape=(nx, ny))
 #%%
 
 dt = 350  # seconds
-nt = 10000
+nt = int(np.ceil(10*24*60**2/dt))
 
 # Coriolis parameter (f=f0 at y=0).
 f = f0 + beta*YS
 
+hState1 = []
+uState1 = []
 for t in range(nt):
     
     # Calculate velocity gradients throughout the domain.
@@ -184,49 +183,30 @@ for t in range(nt):
     uField = uField2 
     vField = vField2
     
-    # # Plot contours
-    # fig, axs = plt.subplots(1, 3, figsize=(32, 13))
-
-    # cont1 = axs[0].imshow(uField)
-    # plt.colorbar(cont1, location='bottom')
-    # axs[0].set_xlabel("X", fontsize=25)
-    # axs[0].set_ylabel("Y", fontsize=25)
-    # axs[0].set_title("u", fontsize=25)
+    uState1.append(uField)
+    hState1.append(hField)
         
-    # cont2 = axs[1].imshow(vField)
-    # plt.colorbar(cont2, location='bottom')
-    # axs[1].set_xlabel("X", fontsize=25)
-    # axs[1].set_title("v", fontsize=25)
-
-    # cont3 = axs[2].imshow(hField)
-    # plt.colorbar(cont3, location='bottom')
-    # # axs[2].contour(XS, YS, uSol, colors='black')
-    # axs[2].set_xlabel("X", fontsize=25)
-    # axs[2].set_title("$\eta$", fontsize=25)
-
-    # plt.show()
+    # Plot contours
+    fig, axs = plt.subplots(1, 3, figsize=(32, 13))
     
-# Plot contours
-fig, axs = plt.subplots(1, 3, figsize=(32, 13))
-
-cont1 = axs[0].imshow(uField)
-plt.colorbar(cont1, location='bottom')
-axs[0].set_xlabel("X", fontsize=25)
-axs[0].set_ylabel("Y", fontsize=25)
-axs[0].set_title("u", fontsize=25)
+    cont1 = axs[0].imshow(uField)
+    plt.colorbar(cont1, location='bottom')
+    axs[0].set_xlabel("X", fontsize=25)
+    axs[0].set_ylabel("Y", fontsize=25)
+    axs[0].set_title("u", fontsize=25)
     
-cont2 = axs[1].imshow(vField)
-plt.colorbar(cont2, location='bottom')
-axs[1].set_xlabel("X", fontsize=25)
-axs[1].set_title("v", fontsize=25)
-
-cont3 = axs[2].imshow(hField)
-plt.colorbar(cont3, location='bottom')
-# axs[2].contour(XS, YS, uSol, colors='black')
-axs[2].set_xlabel("X", fontsize=25)
-axs[2].set_title("$\eta$", fontsize=25)
-
-plt.show()
+    cont2 = axs[1].imshow(vField)
+    plt.colorbar(cont2, location='bottom')
+    axs[1].set_xlabel("X", fontsize=25)
+    axs[1].set_title("v", fontsize=25)
+    
+    cont3 = axs[2].imshow(hField)
+    plt.colorbar(cont3, location='bottom')
+    # axs[2].contour(XS, YS, uSol, colors='black')
+    axs[2].set_xlabel("X", fontsize=25)
+    axs[2].set_title("$\eta$", fontsize=25)
+    
+    plt.show()
 
 #%% Plot the thing
 fig, axs = plt.subplots(2, 2, figsize=(24, 24))

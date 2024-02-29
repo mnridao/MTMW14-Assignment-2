@@ -5,19 +5,9 @@ Student ID: 31827379
 """
 
 import numpy as np
-
-class State(object):
-    """ 
-    Contains and manages the variables corresponding the current state."""
     
-    def __init__(self):
-        
-        self.uField = None 
-        self.vField = None 
-        self.hField = None # Maybe just make field that can hold different scalars.
-
-class ArakawaCGrid(object):
-    """ 
+class ArakawaCGrid:
+    """
     """
     
     def __init__(self, xbounds, nx, ybounds=None, ny=None):
@@ -32,11 +22,17 @@ class ArakawaCGrid(object):
         self.xbounds = xbounds
         self.ybounds = ybounds if ybounds else xbounds
         
+        # Calculate grid spacing from inputs.
+        self.dx = (self.xbounds[1] - self.xbounds[0]) / self.nx
+        self.dy = (self.ybounds[1] - self.ybounds[0]) / self.ny
+        
         # Set up arrays representing the 2D grid.
         self.createGrid()
         
         # Initialise state variables.
-        self.initialiseState()
+        self.uField = np.zeros(shape=(self.ny, self.nx+1))
+        self.vField = np.zeros(shape=(self.ny+1, self.nx))
+        self.hField = np.zeros(shape=(self.nx, self.ny))
         
     def createGrid(self):
         """ 
@@ -45,11 +41,18 @@ class ArakawaCGrid(object):
         ypoints = np.linspace(self.ybounds[0], self.ybounds[1], self.ny+1)
         
         self.X, self.Y = np.meshgrid(xpoints, ypoints)
-    
-    def initialiseState(self):
+        
+    def vOnUField(self):
         """ 
         """
-        self.state = State()
-        self.state.uField = np.zeros(shape=(self.ny, self.nx+1))
-        self.state.vField = np.zeros(shape=(self.ny+1, self.nx))
-        self.state.hField = np.zeros(shape=(self.nx, self.ny))
+        return self.interpolate(self.vField)
+    
+    def uOnVField(self):
+        """ 
+        """
+        return self.interpolate(self.uField)
+    
+    def interpolate(self, phi):
+        """ 
+        """
+        return (phi[:-1, :-1] + phi[1:, :-1] + phi[:-1, 1:] + phi[1:, 1:])/4
