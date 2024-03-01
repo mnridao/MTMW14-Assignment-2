@@ -14,7 +14,7 @@ class Parameters:
     def __init__(self):
         
         # self.windStressActivated = True # Not used atm.
-        self.betaPlaneActivated  = True
+        # self.betaPlaneActivated  = True
         
         ## DEFAULT PARAMETERS ##
         
@@ -34,7 +34,6 @@ class Parameters:
     def setDefaultWindStress(self):
         """ 
         """
-        self.tau0 = 0.2                  # Wind stress amplitude [Nm^-2]
         self.setWindStressX("default")
         self.setWindStressY("default")
     
@@ -48,6 +47,7 @@ class Parameters:
         """ 
         """
         if key == "default":
+            self.tau0 = 0.2 # Wind stress amplitude [Nm^-2]
             self.tauX = lambda Y, L: - self.tau0*np.cos(np.pi*Y/L)
             
         elif key == "off":
@@ -95,6 +95,8 @@ class UVelocity(BaseEqnSWE):
     
     def __init__(self):
         super().__init__() 
+        
+        self.name = "uVelocity"
                 
     def _f(self, grid):
         """ 
@@ -119,6 +121,8 @@ class VVelocity(BaseEqnSWE):
     def __init__(self):
         super().__init__()
         
+        self.name = "vVelocity"
+        
     def _f(self, grid):
         """ 
         """        
@@ -141,6 +145,8 @@ class Eta(BaseEqnSWE):
 
     def __init__(self):
         super().__init__()
+        
+        self.name = "eta"
         
     def _f(self, grid):
         """ 

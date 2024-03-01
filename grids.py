@@ -34,6 +34,11 @@ class ArakawaCGrid:
         self.vField = np.zeros(shape=(self.ny+1, self.nx))
         self.hField = np.zeros(shape=(self.nx, self.ny))
         
+        # Store by ref in dictionary for iterating over fields.
+        self.fields = {"uVelocity" : self.uField[:, 1:-1],
+                       "vVelocity" : self.vField[1:-1, :],
+                       "eta"       : self.hField}
+            
     def createGrid(self):
         """ 
         """
