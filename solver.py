@@ -3,6 +3,7 @@ MTMW14 Assignment 2
 
 Student ID: 31827379
 """
+from plotters import plotContourSubplot
 
 class Model:
     """ 
@@ -18,6 +19,10 @@ class Model:
         # TODO: add functions to change this via this class.
         self.windStressActivated = True
         self.betaPlaneActivated  = True
+        
+        # TODO: attach functions here e.g. energy, to be calculated each iteration?
+        # frames for plots as well?
+        self.monitors = []
         
 class Solver:
     
@@ -45,6 +50,9 @@ class Solver:
             
             # Store state if necessary.
             # ...
+            
+            # Plt.
+            plotContourSubplot(self.model.grid)
     
     def runEnsemble(self, numEnsembles, perturbationRange, *phi0):
         """ 

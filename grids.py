@@ -29,7 +29,7 @@ class ArakawaCGrid:
         # Set up arrays representing the 2D grid.
         self.createGrid()
         
-        # Initialise state variables.
+        # Initialise default state variables.
         self.uField = np.zeros(shape=(self.ny, self.nx+1))
         self.vField = np.zeros(shape=(self.ny+1, self.nx))
         self.hField = np.zeros(shape=(self.nx, self.ny))
@@ -61,3 +61,21 @@ class ArakawaCGrid:
         """ 
         """
         return (phi[:-1, :-1] + phi[1:, :-1] + phi[:-1, 1:] + phi[1:, 1:])/4
+    
+    def setInitialCondition(self, key, *args):
+        """ 
+        """
+        
+        if key == "column":
+            
+            # Get the parameters from the function arguments.
+            x1, x2, y1, y2, height = args
+            
+            # Update the appropriate fields.
+            self.hField[x1:x2, y1:y2] = height
+            
+            # For accessing - this is stupid.
+            self.fields["eta"] = self.hField
+        
+        elif key == "step":
+            pass
