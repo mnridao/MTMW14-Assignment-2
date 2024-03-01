@@ -5,6 +5,7 @@ Student ID: 31827379
 """
 
 import numpy as np
+from scipy.stats import multivariate_normal
     
 class ArakawaCGrid:
     """
@@ -38,7 +39,10 @@ class ArakawaCGrid:
         self.fields = {"uVelocity" : self.uField[:, 1:-1],
                        "vVelocity" : self.vField[1:-1, :],
                        "eta"       : self.hField}
-            
+        
+        # Set up beta plane.
+        
+        
     def createGrid(self):
         """ 
         """
@@ -66,16 +70,40 @@ class ArakawaCGrid:
         """ 
         """
         
-        if key == "column":
-            
-            # Get the parameters from the function arguments.
-            x1, x2, y1, y2, height = args
-            
-            # Update the appropriate fields.
-            self.hField[x1:x2, y1:y2] = height
-            
-            # For accessing - this is stupid.
-            self.fields["eta"] = self.hField
+        if key == "step":
+                        
+            self.setStepInitialCondition(*args)
         
-        elif key == "step":
-            pass
+        elif key == "blob":
+            
+            self.setBlobInitialCondition(*args)
+            
+        # TODO: Should be able to reset the initial condition as well.
+            
+    def setStepInitialCondition(self, X, Y, height):
+        """ 
+        """
+        # Convert to indices.
+        nx = (X/self.dx).astype(int)
+        ny = (Y/self.dy).astype(int)
+        
+        # Update the appropriate fields.
+        self.hField[nx[0]:nx[1], ny[0]:ny[1]] = height
+        
+        # Update hField view - this is stupid.
+        self.fields["eta"] = self.hField
+        
+    def setBlobInitialCondition(self, mu, var, height):
+        """ 
+        """
+        # Create the Gaussian blob.
+        pos = np.empty(self.X.shape + (2,))
+        pos[..., 0] = self.X
+        pos[..., 1] = self.Y
+        rv = multivariate_normal(mu, [[var[0], 0], [0, var[1]]])
+        
+        # Generate the blob height perturbation field.
+        self.hField = height * rv.pdf(pos)[:-1, :-1]
+        
+        # Update hField view - this is stupid.
+        self.fields["eta"] = self.hField

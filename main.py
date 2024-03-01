@@ -20,15 +20,15 @@ if __name__ == "__main__":
         
     # Grid creation.
     x0, xL = 0, 1e6 
-    dx = 25e3
+    dx = 12.5e3
     nx = int((xL - x0)/dx)
     grid = ArakawaCGrid([x0, xL], nx)
-    grid.setInitialCondition("column", 0.5e3, 1.5e5, 0.5e4, 1.5e5, 50)
+    grid.setInitialCondition("blob", [5e5, 5e5], [dx**2, dx**2], 1000*dx)
     plotContourSubplot(grid)
     
     #%%
     # Time stepping information.
-    dt = 175
+    dt = 175/2
     endtime = 10*24*60**2 
     nt = int(np.ceil(endtime/dt))
     
