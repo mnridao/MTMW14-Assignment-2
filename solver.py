@@ -108,10 +108,8 @@ class Solver:
         self.history = None
         self.ensembleHistory = None
         
-        # Functions that should be called each iteration stored here. #
-        # TODO: better way of doing this (accessing is difficult).  
-        self.customEquations = []
-        self.customData = []
+        # Functions that should be called each iteration stored here.
+        self.customEquations = {}
         
     def run(self, *phi0):
         """ 
@@ -126,35 +124,37 @@ class Solver:
             # ...
             
             # Evaluate any functions added by user (e.g. energy)
-            if self.customEquations:
+            for eqn in self.customEquations.values():
                 
-                for i, customEqn in enumerate(self.customEquations):
-                    
-                    # Append the results of custom eqn to data list.
-                    self.customData[i][t+1] = customEqn(self.model)
+                # Evaluate the custom eqn for the current grid state.
+                eqn["data"][t+1] = eqn["func"](self.model)
             
-            # plotContourSubplot(self.model.grid)
-            fig, ax = plt.subplots(figsize = (8, 8), facecolor = "white")
-            plt.title("Velocity field $\mathbf{u}(x,y)$ after 0.0 days", fontname = "serif", fontsize = 19)
-            plt.xlabel("x [km]", fontname = "serif", fontsize = 16)
-            plt.ylabel("y [km]", fontname = "serif", fontsize = 16)
-            q_int = 3
-            Q = ax.quiver(self.model.grid.X[::q_int, ::q_int]/1000.0, self.model.grid.Y[::q_int, ::q_int]/1000.0, self.model.grid.uField[::q_int,::q_int], self.model.grid.vField[::q_int,::q_int],
-                scale=0.05, scale_units='inches')
-            plt.show()
+            # # plotContourSubplot(self.model.grid)
+            # fig, ax = plt.subplots(figsize = (8, 8), facecolor = "white")
+            # plt.title("Velocity field $\mathbf{u}(x,y)$ after 0.0 days", fontname = "serif", fontsize = 19)
+            # plt.xlabel("x [km]", fontname = "serif", fontsize = 16)
+            # plt.ylabel("y [km]", fontname = "serif", fontsize = 16)
+            # q_int = 3
+            # Q = ax.quiver(self.model.grid.X[::q_int, ::q_int]/1000.0, self.model.grid.Y[::q_int, ::q_int]/1000.0, self.model.grid.uField[::q_int,::q_int], self.model.grid.vField[::q_int,::q_int],
+            #     scale=0.05, scale_units='inches')
+            # plt.show()
     
     def runEnsemble(self, numEnsembles, perturbationRange, *phi0):
         """ 
         """
         pass
     
-    def addCustomEquations(self, customEqn, numRes):
+    def addCustomEquations(self, key, customEqn, nres=1):
+        """ 
+        """        
+        # Initialise results data for custom function.
+        data = np.zeros(shape=(self.nt+1, nres))
+        data[0] = customEqn(self.model)
+        
+        # Store in dict for easy accessing.
+        self.customEquations[key] = {"func": customEqn, "data": data}
+        
+    def getCustomData(self, key):
         """ 
         """
-        # Initialise the custom equation and data field. 
-        # TODO: better way of doing this.
-        self.customEquations.append(customEqn)
-        self.customData.append(np.zeros(shape=(self.nt+1, numRes)))
-        
-        # Add initial return result.
-        self.customData[-1][0] = self.customEquations[-1](self.model)
+        return self.customEquations[key]["data"]

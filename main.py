@@ -51,11 +51,17 @@ if __name__ == "__main__":
     solver = Solver(model, scheme, dt, nt)
     
     # Add energy calculator to solver.
-    solver.addCustomEquations(calculateEnergy, 1)
+    solver.addCustomEquations("energy", calculateEnergy)
         
     #%% Task D (get plots working here)
     solver.run()
+    energy = solver.getCustomData("energy")
     plotContourSubplot(solver.model.grid)
+    
+    # Plot energy.
+    plt.figure(figsize=(10, 10))
+    plt.plot(energy)
+    plt.show()
     
     # Quiver plot for velocity.
     # fig, ax = plt.subplots(figsize = (8, 8), facecolor = "white")
