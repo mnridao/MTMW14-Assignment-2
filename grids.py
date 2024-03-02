@@ -29,6 +29,30 @@ class ArakawaCGrid:
         # Set up arrays representing the 2D grid.
         self.createGrid()
         
+        # # Initialise default state variables.
+        # self.uField = np.zeros(shape=(self.ny, self.nx+1))
+        # self.vField = np.zeros(shape=(self.ny+1, self.nx))
+        # self.hField = np.zeros(shape=(self.nx, self.ny))
+        
+        # # Store by ref in dictionary for iterating over fields.
+        # self.fields = {"uVelocity" : self.uField[:, 1:-1],
+        #                "vVelocity" : self.vField[1:-1, :],
+        #                "eta"       : self.hField}
+        
+        # Initialise the default state variables.
+        self.resetFields()
+        
+    def createGrid(self):
+        """ 
+        """
+        xpoints = np.linspace(self.xbounds[0], self.xbounds[1], self.nx+1)
+        ypoints = np.linspace(self.ybounds[0], self.ybounds[1], self.ny+1)
+        
+        self.X, self.Y = np.meshgrid(xpoints, ypoints)
+        
+    def resetFields(self):
+        """ 
+        """
         # Initialise default state variables.
         self.uField = np.zeros(shape=(self.ny, self.nx+1))
         self.vField = np.zeros(shape=(self.ny+1, self.nx))
@@ -38,14 +62,6 @@ class ArakawaCGrid:
         self.fields = {"uVelocity" : self.uField[:, 1:-1],
                        "vVelocity" : self.vField[1:-1, :],
                        "eta"       : self.hField}
-        
-    def createGrid(self):
-        """ 
-        """
-        xpoints = np.linspace(self.xbounds[0], self.xbounds[1], self.nx+1)
-        ypoints = np.linspace(self.ybounds[0], self.ybounds[1], self.ny+1)
-        
-        self.X, self.Y = np.meshgrid(xpoints, ypoints)
         
     def vOnUField(self):
         """ 
@@ -61,13 +77,3 @@ class ArakawaCGrid:
         """ 
         """
         return (phi[:-1, :-1] + phi[1:, :-1] + phi[:-1, 1:] + phi[1:, 1:])/4
-    
-    def setDefaultEtaField(self):
-        """ 
-        """
-        
-        # Reset hField to no perturbations.
-        self.hField = np.zeros(shape=(self.nx, self.ny))
-        
-        # Update hField view.
-        self.fields["eta"] = self.hField

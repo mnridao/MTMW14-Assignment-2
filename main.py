@@ -35,13 +35,14 @@ def calculateTimestepCFL(c, d):
 if __name__ == "__main__":
         
     # Grid creation.
-    x0, xL = 0, 1e6
-    dx = 12.5e3
-    nx = int((xL - x0)/dx)
-    grid = ArakawaCGrid([x0, xL], nx)
+    xbounds = [0, 1e6]
+    xL = xbounds[1]
+    dx = 50e3
+    nx = int((xbounds[1] - xbounds[0])/dx)
+    grid = ArakawaCGrid(xbounds, nx)
     
     # Time stepping information.
-    dt = calculateTimestepCFL(100, dx)
+    dt = calculateTimestepCFL(100, dx) - 3
     endtime = 50*24*60**2 
     nt = int(np.ceil(endtime/dt))
     
@@ -77,7 +78,30 @@ if __name__ == "__main__":
     
     # Height perturbation plot 3D.
     
+    #%% Task E (energy)
+    
+    # Half the grid spacing and find new time step.
+    solver.model.grid = ArakawaCGrid(xbounds, nx*2)
+    
+    dt = calculateTimestepCFL(100, solver.model.grid.dx)
+    solver.setNewTimestep(dt, endtime)
+            
+    # Run the solver and plot the new energy.
+    solver.run()
+    plotContourSubplot(solver.model.grid)
+    
+    energyHalf = solver.getCustomData("energy")
+    
+    # time = np.arange(0, solver.nt*(solver.dt+1), solver.dt)
+    plt.figure(figsize=(10, 10))
+    plt.plot(energy, label="$\Delta x$=50km")
+    plt.plot(energyHalf, label="$\Delta x$=25km")
+    plt.grid()
+    plt.legend()
+    plt.show()
+    
     #%% Turn rotation on/off.
+
     solver.model.activateBetaPlane(False)
     solver.run()
     plotContourSubplot(solver.model.grid)
@@ -114,7 +138,7 @@ if __name__ == "__main__":
     solver.model.activateWindStress(False)
     
     # Create new grid for equatorial beta plate.
-    grid = ArakawaCGrid([x0, xL], nx, [-0.5*xL, 0.5*xL])
+    grid = ArakawaCGrid(xbounds, nx, [-0.5*xL, 0.5*xL])
     
     # Equatorial beta plane.
     solver.model.setf0(0)

@@ -114,6 +114,9 @@ class Solver:
     def run(self, *phi0):
         """ 
         """
+        # Reset the grid fields.
+        self.model.grid.resetFields()
+        
         # Run the simulation for each time step.
         for t in range(self.nt):
             
@@ -158,3 +161,15 @@ class Solver:
         """ 
         """
         return self.customEquations[key]["data"]
+    
+    def setNewTimestep(self, dt, endtime):
+        """ 
+        """
+        self.dt = dt
+        self.nt = int(np.ceil(endtime/dt))
+        
+        # Update customEquations data fields.
+        for key, val in self.customEquations.items():
+            
+            # Change the size of the data array for the new nt.            
+            self.addCustomEquations(key, val["func"], val["data"].shape[1])
