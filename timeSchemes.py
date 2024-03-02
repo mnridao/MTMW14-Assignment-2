@@ -6,6 +6,12 @@ Student ID: 31827379
 
 def forwardBackwardSchemeCoupled(funcs, grid, dt, nt):
     """ 
+    
+    Inputs
+    -------
+    
+    Returns
+    -------
     """
     # Forward-euler for scalar field (height perturbation).
     grid.fields[funcs[0].name] += dt*funcs[0](grid)

@@ -14,7 +14,7 @@ class Parameters:
     def __init__(self):
         
         # self.windStressActivated = True # Not used atm.
-        # self.betaPlaneActivated  = True
+        self.betaPlaneActive = True
         
         ## DEFAULT PARAMETERS ##
         
@@ -76,11 +76,7 @@ class BaseEqnSWE(ABC):
     
     def __call__(self, grid):
         """
-        Something like this...
-        
-        pass in time parameters if needed."""
-        
-        # Update parameters if neccesary.
+        """
         # params.updateParams()
         
         return self._f(grid)
@@ -105,7 +101,8 @@ class UVelocity(BaseEqnSWE):
         detadx = (grid.hField[:, 1:] - grid.hField[:, :-1])/grid.dx
 
         # Coriolis parameter.
-        f = self.params.f0 + self.params.beta*grid.Y
+        f = (self.params.betaPlaneActive*
+             (self.params.f0 + self.params.beta*grid.Y))
         
         # Wind forcing in x-direction.
         tauX = self.params.tauX(grid.Y, grid.xbounds[1])
@@ -130,7 +127,8 @@ class VVelocity(BaseEqnSWE):
         detady = (grid.hField[1:, :] - grid.hField[:-1, :])/grid.dy
 
         # Coriolis parameter.
-        f = self.params.f0 + self.params.beta*grid.Y
+        f = (self.params.betaPlaneActive*
+             (self.params.f0 + self.params.beta*grid.Y))
         
         # Wind forcing in y-direction.
         tauY = self.params.tauY(grid.Y)
