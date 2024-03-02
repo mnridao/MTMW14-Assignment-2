@@ -105,11 +105,13 @@ if __name__ == "__main__":
     plotContourSubplot(solver.model.grid)
     
     #%% Gravity wave with blob initial condition.
+    solver.model.grid.resetFields()
+    
     solver.model.activateBetaPlane(False)
     solver.model.activateWindStress(False)
     
-    solver.model.setBlobInitialCondition(xL*np.array([0, 0.5]), 
-                                         (xL*np.array([0.05, 0.05]))**2, 1e6*dx)
+    solver.model.setBlobInitialCondition(xL*np.array([0.5, 0.55]), 
+                                          (dx**2*np.array([2, 2])**2), 0.01*dx)
     plotContourSubplot(solver.model.grid)
     
     solver.run()
@@ -141,7 +143,7 @@ if __name__ == "__main__":
     # solver.model.setStepInitialCondition(xL*np.array([0.5, 0.55]), 
     #                                        xL*np.array([0.5, 0.55]), 50*dx)
     solver.model.setBlobInitialCondition(xL*np.array([0.5, 0.55]), 
-                                          (dx**2*np.array([2, 2])**2), 2*dx)
+                                          (dx**2*np.array([2, 2])**2), 100)
     plotContourSubplot(solver.model.grid)
     solver.run()
     
@@ -159,7 +161,7 @@ if __name__ == "__main__":
                       solver.model.grid.Y[::q_int, ::q_int]/1000.0, 
                       state[0][::q_int,::q_int], 
                       state[1][::q_int,::q_int],
-            scale=1000, scale_units='inches')
+            scale=5, scale_units='inches')
         plt.show()
         
     #%% Plot height perturbation contour plots.
@@ -171,7 +173,7 @@ if __name__ == "__main__":
     for state in solver.history:
         plt.figure(figsize=(10, 10))
         
-        levels = 75
+        levels = 100
         
         cmap = plt.get_cmap('viridis', levels)
 
@@ -208,10 +210,58 @@ if __name__ == "__main__":
                                 vmin=minH, vmax=maxH
                                )
         
-        ax.set_zlim(-5, 3*dx)
+        ax.set_zlim(-5, 100)
         
         # Customize the plot
         ax.set_xlabel('X [km]', fontsize=25)
         ax.set_ylabel('Y [km]', fontsize=25)
     
         plt.show()
+        
+    #%%
+    from matplotlib.animation import FuncAnimation
+    
+    minH = min(np.min(state[2]) for state in solver.history)
+    maxH = max(np.max(state[2]) for state in solver.history)
+    
+    # Set up the figure and axis
+    fig = plt.figure(figsize=(20, 20))
+    ax = fig.add_subplot(111, projection='3d')
+    
+    def update(frame):
+        ax.clear()
+    
+        state = solver.history[frame]
+    
+        # Plot the surface
+        surf = ax.plot_surface(solver.model.grid.X[:-1, :-1],
+                                solver.model.grid.Y[:-1, :-1],
+                                solver.history[frame][2],
+                                cmap='viridis',
+                                rstride=5, cstride=5, antialiased=True,
+                                vmin=minH, vmax=maxH
+                                )
+    
+        ax.set_zlim(-5, 3 * dx)
+        ax.set_xlabel('X [km]', fontsize=25)
+        ax.set_ylabel('Y [km]', fontsize=25)
+        ax.set_title(f'Frame {frame}', fontsize=25)
+    
+        return surf,
+    
+    # The total number of frames is the length of the solver history
+    total_frames = len(solver.history)
+    
+    # Use FuncAnimation to create the animation
+    animation = FuncAnimation(fig, update, frames=total_frames, interval=200)
+    
+    plt.show()
+    
+    # Save the animation as a GIF
+    from matplotlib.animation import PillowWriter
+    
+    writer = PillowWriter(fps=30)
+    animation.save("sine_example.gif", writer=writer)
+    
+    # Close the figure to avoid displaying it twice
+    plt.close(fig)
