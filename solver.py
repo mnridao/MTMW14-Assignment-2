@@ -6,6 +6,8 @@ Student ID: 31827379
 import numpy as np
 from scipy.stats import multivariate_normal
 
+from plotters import plotContourSubplot
+
 class Model:
     """ 
     """
@@ -131,6 +133,7 @@ class Solver:
                     self.customData[i][t+1] = customEqn(self.model)
             
             # plotContourSubplot(self.model.grid)
+            
     
     def runEnsemble(self, numEnsembles, perturbationRange, *phi0):
         """ 

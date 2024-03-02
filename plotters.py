@@ -31,3 +31,6 @@ def plotContourSubplot(grid):
     axs[2].set_title("$\eta$", fontsize=25)
 
     plt.show()
+    
+# Quiver plot + height perturbation plot (with fixed colorbar and time shown).
+

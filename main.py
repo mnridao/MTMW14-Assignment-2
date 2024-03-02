@@ -17,16 +17,6 @@ def createGrid(xbounds, dx, ybounds, d):
     """
     pass
 
-def setupModel():
-    """ 
-    """
-    pass
-
-def setupSolver():
-    """ 
-    """
-    pass
-
 def calculateEnergy(model):
     """ 
     """
@@ -36,18 +26,22 @@ def calculateEnergy(model):
                                   params.g*model.grid.hField**2)) * 
             model.grid.dx**2)
 
+def calculateTimestepCFL(c, d):
+    """ 
+    """
+    return np.floor(d/(c*np.sqrt(2)))
+
 if __name__ == "__main__":
         
     # Grid creation.
     x0, xL = 0, 1e6
-    dx = 50e3
+    dx = 12.5e3
     nx = int((xL - x0)/dx)
     grid = ArakawaCGrid([x0, xL], nx)
     
-    #%%
     # Time stepping information.
-    dt = 350
-    endtime = 10*24*60**2 
+    dt = calculateTimestepCFL(100, dx)
+    endtime = 50*24*60**2 
     nt = int(np.ceil(endtime/dt))
     
     # Set up the model and solver.
@@ -57,14 +51,18 @@ if __name__ == "__main__":
     
     # Add energy calculator to solver.
     solver.addCustomEquations(calculateEnergy, 1)
-    
-    #%%
-    # solver.model.setInitialCondition("step", np.array([0.5, 0.55*xL]), np.array([0.*xL, 0.05*xL]), 100*dx)
-    # plotContourSubplot(solver.model.grid)
-    
+        
     #%% Task D
     solver.run()
     plotContourSubplot(solver.model.grid)
+    
+    # Get the plots working here.
+    
+    # Quiver plot for velocity.
+    
+    # Height perturbation plot.
+    
+    # Height perturbation plot 3D.
     
     #%% Turn rotation on/off.
     solver.model.activateBetaPlane(False)
@@ -76,6 +74,42 @@ if __name__ == "__main__":
     solver.run()
     plotContourSubplot(solver.model.grid)
     
-    #%% Monitors.
+    #%% Gravity wave with step initial condition.
+    solver.model.activateBetaPlane(False)
+    solver.model.activateWindStress(False)
     
-    # solver.model
+    solver.model.setStepInitialCondition(xL*np.array([0.5, 0.55]), 
+                                         xL*np.array([0.5, 0.55]), 100*dx)
+    plotContourSubplot(solver.model.grid)
+    
+    solver.run()
+    plotContourSubplot(solver.model.grid)
+    
+    #%% Gravity wave with blob initial condition.
+    solver.model.activateBetaPlane(False)
+    solver.model.activateWindStress(False)
+    
+    solver.model.setBlobInitialCondition(xL*np.array([0, 0.5]), 
+                                         (xL*np.array([0.05, 0.05]))**2, 1e6*dx)
+    # plotContourSubplot(solver.model.grid)
+    
+    solver.run()
+    plotContourSubplot(solver.model.grid)
+    
+    #%% Kelvin wave attempt (increase beta?).
+    solver.model.activateBetaPlane(True)
+    solver.model.activateWindStress(False)
+    
+    # Create new grid for equatorial beta plate.
+    grid = ArakawaCGrid([x0, xL], nx, [-0.5*xL, 0.5*xL])
+    
+    # Equatorial beta plane.
+    solver.model.setf0(0)
+    solver.model.setBeta(5e-8)   # Increase the effects of rotation.
+    solver.model.grid = grid
+    
+    solver.model.setStepInitialCondition(xL*np.array([0., 0.05]), 
+                                         xL*np.array([0.5, 0.55]), 100*dx)
+    
+    solver.run()
+    plotContourSubplot(solver.model.grid)
