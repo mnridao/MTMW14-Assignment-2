@@ -60,6 +60,7 @@ if __name__ == "__main__":
     plotContourSubplot(solver.model.grid)
     
     # Plot energy.
+    time = np.arange(0, solver.dt*(solver.nt+1), solver.dt)
     plt.figure(figsize=(10, 10))
     plt.plot(energy)
     plt.show()
@@ -92,10 +93,10 @@ if __name__ == "__main__":
     
     energyHalf = solver.getCustomData("energy")
     
-    # time = np.arange(0, solver.nt*(solver.dt+1), solver.dt)
+    timeHalf = np.arange(0, solver.dt*(solver.nt+1), solver.dt)
     plt.figure(figsize=(10, 10))
-    plt.plot(energy, label="$\Delta x$=50km")
-    plt.plot(energyHalf, label="$\Delta x$=25km")
+    plt.plot(time, energy, label="$\Delta x$=50km")
+    plt.plot(timeHalf, energyHalf, label="$\Delta x$=25km")
     plt.grid()
     plt.legend()
     plt.show()
