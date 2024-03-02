@@ -152,14 +152,14 @@ if __name__ == "__main__":
     
         fig, ax = plt.subplots(figsize = (8, 8), facecolor = "white")
         plt.title("Velocity field $\mathbf{u}(x,y)$ after 0.0 days", fontname = "serif", fontsize = 19)
-        plt.xlabel("x [km]", fontname = "serif", fontsize = 16)
-        plt.ylabel("y [km]", fontname = "serif", fontsize = 16)
+        plt.xlabel("x [km]", fontsize = 16)
+        plt.ylabel("y [km]", fontsize = 16)
         q_int = 3
         Q = ax.quiver(solver.model.grid.X[::q_int, ::q_int]/1000.0, 
                       solver.model.grid.Y[::q_int, ::q_int]/1000.0, 
                       state[0][::q_int,::q_int], 
                       state[1][::q_int,::q_int],
-            scale=50, scale_units='inches')
+            scale=1000, scale_units='inches')
         plt.show()
         
     #%% Plot height perturbation contour plots.
@@ -192,7 +192,6 @@ if __name__ == "__main__":
     minH = min(np.min(state[2]) for state in solver.history)
     maxH = max(np.max(state[2]) for state in solver.history)
     
-    # Assuming solver.history is a list of states
     for state in solver.history:
         
         fig = plt.figure(figsize=(20, 20))
@@ -214,6 +213,5 @@ if __name__ == "__main__":
         # Customize the plot
         ax.set_xlabel('X [km]', fontsize=25)
         ax.set_ylabel('Y [km]', fontsize=25)
-        # ax.set_zlabel('Z')
     
         plt.show()
