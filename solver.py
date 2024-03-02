@@ -7,6 +7,7 @@ import numpy as np
 from scipy.stats import multivariate_normal
 
 from plotters import plotContourSubplot
+import matplotlib.pyplot as plt
 
 class Model:
     """ 
@@ -133,7 +134,14 @@ class Solver:
                     self.customData[i][t+1] = customEqn(self.model)
             
             # plotContourSubplot(self.model.grid)
-            
+            fig, ax = plt.subplots(figsize = (8, 8), facecolor = "white")
+            plt.title("Velocity field $\mathbf{u}(x,y)$ after 0.0 days", fontname = "serif", fontsize = 19)
+            plt.xlabel("x [km]", fontname = "serif", fontsize = 16)
+            plt.ylabel("y [km]", fontname = "serif", fontsize = 16)
+            q_int = 3
+            Q = ax.quiver(self.model.grid.X[::q_int, ::q_int]/1000.0, self.model.grid.Y[::q_int, ::q_int]/1000.0, self.model.grid.uField[::q_int,::q_int], self.model.grid.vField[::q_int,::q_int],
+                scale=0.05, scale_units='inches')
+            plt.show()
     
     def runEnsemble(self, numEnsembles, perturbationRange, *phi0):
         """ 

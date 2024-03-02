@@ -5,6 +5,7 @@ Student ID: 31827379
 """
 
 import numpy as np
+import matplotlib.pyplot as plt
 
 from solver import Solver, Model
 from equations import UVelocity, VVelocity, Eta
@@ -52,13 +53,19 @@ if __name__ == "__main__":
     # Add energy calculator to solver.
     solver.addCustomEquations(calculateEnergy, 1)
         
-    #%% Task D
+    #%% Task D (get plots working here)
     solver.run()
     plotContourSubplot(solver.model.grid)
     
-    # Get the plots working here.
-    
     # Quiver plot for velocity.
+    # fig, ax = plt.subplots(figsize = (8, 8), facecolor = "white")
+    # plt.title("Velocity field $\mathbf{u}(x,y)$ after 0.0 days", fontname = "serif", fontsize = 19)
+    # plt.xlabel("x [km]", fontname = "serif", fontsize = 16)
+    # plt.ylabel("y [km]", fontname = "serif", fontsize = 16)
+    # q_int = 3
+    # Q = ax.quiver(grid.X[::q_int, ::q_int]/1000.0, grid.Y[::q_int, ::q_int]/1000.0, solver.model.grid.uField[::q_int,::q_int], solver.model.grid.vField[::q_int,::q_int],
+    #     scale=0.2, scale_units='inches')
+    # plt.show()
     
     # Height perturbation plot.
     
