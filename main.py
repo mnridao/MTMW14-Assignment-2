@@ -13,11 +13,6 @@ from grids import ArakawaCGrid
 from timeSchemes import forwardBackwardSchemeCoupled
 from plotters import plotContourSubplot
 
-def createGrid(xbounds, dx, ybounds, d):
-    """ 
-    """
-    pass
-
 def calculateEnergy(model):
     """ 
     """
@@ -37,13 +32,13 @@ if __name__ == "__main__":
     # Grid creation.
     xbounds = [0, 1e6]
     xL = xbounds[1]
-    dx = 50e3
+    dx = 25e3
     nx = int((xbounds[1] - xbounds[0])/dx)
     grid = ArakawaCGrid(xbounds, nx)
     
     # Time stepping information.
     dt = calculateTimestepCFL(100, dx) - 3
-    endtime = 50*24*60**2 
+    endtime = 10*24*60**2 
     nt = int(np.ceil(endtime/dt))
     
     # Set up the model and solver.
@@ -64,21 +59,7 @@ if __name__ == "__main__":
     plt.figure(figsize=(10, 10))
     plt.plot(energy)
     plt.show()
-    
-    # Quiver plot for velocity.
-    # fig, ax = plt.subplots(figsize = (8, 8), facecolor = "white")
-    # plt.title("Velocity field $\mathbf{u}(x,y)$ after 0.0 days", fontname = "serif", fontsize = 19)
-    # plt.xlabel("x [km]", fontname = "serif", fontsize = 16)
-    # plt.ylabel("y [km]", fontname = "serif", fontsize = 16)
-    # q_int = 3
-    # Q = ax.quiver(grid.X[::q_int, ::q_int]/1000.0, grid.Y[::q_int, ::q_int]/1000.0, solver.model.grid.uField[::q_int,::q_int], solver.model.grid.vField[::q_int,::q_int],
-    #     scale=0.2, scale_units='inches')
-    # plt.show()
-    
-    # Height perturbation plot.
-    
-    # Height perturbation plot 3D.
-    
+        
     #%% Task E (energy)
     
     # Half the grid spacing and find new time step.
@@ -129,7 +110,7 @@ if __name__ == "__main__":
     
     solver.model.setBlobInitialCondition(xL*np.array([0, 0.5]), 
                                          (xL*np.array([0.05, 0.05]))**2, 1e6*dx)
-    # plotContourSubplot(solver.model.grid)
+    plotContourSubplot(solver.model.grid)
     
     solver.run()
     plotContourSubplot(solver.model.grid)
@@ -151,3 +132,88 @@ if __name__ == "__main__":
     
     solver.run()
     plotContourSubplot(solver.model.grid)
+    
+    
+    #%% Trying out different plots.
+    solver.model.grid.resetFields()
+    
+    solver.store = True
+    # solver.model.setStepInitialCondition(xL*np.array([0.5, 0.55]), 
+    #                                        xL*np.array([0.5, 0.55]), 50*dx)
+    solver.model.setBlobInitialCondition(xL*np.array([0.5, 0.55]), 
+                                          (dx**2*np.array([2, 2])**2), 2*dx)
+    plotContourSubplot(solver.model.grid)
+    solver.run()
+    
+    plotContourSubplot(solver.model.grid)
+    
+    #%% Plot velocity quiver plots.
+    for state in solver.history:
+    
+        fig, ax = plt.subplots(figsize = (8, 8), facecolor = "white")
+        plt.title("Velocity field $\mathbf{u}(x,y)$ after 0.0 days", fontname = "serif", fontsize = 19)
+        plt.xlabel("x [km]", fontname = "serif", fontsize = 16)
+        plt.ylabel("y [km]", fontname = "serif", fontsize = 16)
+        q_int = 3
+        Q = ax.quiver(solver.model.grid.X[::q_int, ::q_int]/1000.0, 
+                      solver.model.grid.Y[::q_int, ::q_int]/1000.0, 
+                      state[0][::q_int,::q_int], 
+                      state[1][::q_int,::q_int],
+            scale=50, scale_units='inches')
+        plt.show()
+        
+    #%% Plot height perturbation contour plots.
+    from matplotlib import colors
+    
+    minH = min(np.min(state[2]) for state in solver.history)
+    maxH = max(np.max(state[2]) for state in solver.history)
+        
+    for state in solver.history:
+        plt.figure(figsize=(10, 10))
+        
+        levels = 75
+        
+        cmap = plt.get_cmap('viridis', levels)
+
+        # Normalize the data based on minH and maxH
+        norm = colors.Normalize(vmin=minH, vmax=maxH)
+        
+        cont = plt.contourf(solver.model.grid.X[:-1, :-1], 
+                            solver.model.grid.Y[:-1,:-1], 
+                            state[2], 
+                            # vmin=minH, vmax=maxH, 
+                            levels=levels, cmap=cmap, norm=norm)
+
+        plt.show()
+        # break
+    
+    #%% Plot heigh perturbation surface plots.
+    
+    minH = min(np.min(state[2]) for state in solver.history)
+    maxH = max(np.max(state[2]) for state in solver.history)
+    
+    # Assuming solver.history is a list of states
+    for state in solver.history:
+        
+        fig = plt.figure(figsize=(20, 20))
+        ax = fig.add_subplot(111, projection='3d')
+        
+        # norm = colors.Normalize(vmin=minH, vmax=maxH)
+        
+        # Plot the surface
+        surf = ax.plot_surface(solver.model.grid.X[:-1, :-1], 
+                               solver.model.grid.Y[:-1, :-1], 
+                               state[2], 
+                                cmap='viridis', 
+                               rstride=5, cstride=5, antialiased=True,
+                                vmin=minH, vmax=maxH
+                               )
+        
+        ax.set_zlim(-5, 3*dx)
+        
+        # Customize the plot
+        ax.set_xlabel('X [km]', fontsize=25)
+        ax.set_ylabel('Y [km]', fontsize=25)
+        # ax.set_zlabel('Z')
+    
+        plt.show()

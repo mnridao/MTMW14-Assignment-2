@@ -60,11 +60,6 @@ class Model:
         elif key == "blob":
             
             self.setBlobInitialCondition(*args)
-        
-        elif key == "reset":
-            
-            # Reset height perturbations to zero.
-            self.grid.setDefaultEtaField()
             
     def setStepInitialCondition(self, X, Y, height):
         """ 
@@ -86,15 +81,21 @@ class Model:
         pos = np.empty(self.grid.X.shape + (2,))
         pos[..., 0] = self.grid.X
         pos[..., 1] = self.grid.Y
-        rv = multivariate_normal(mu, [[var[0], 0], [0, var[1]]])
+        # rv = multivariate_normal(mu, [[var[0], 0], [0, var[1]]])
+        
+        pdf = multivariate_normal(mu, [[var[0], 0], [0, var[1]]]).pdf(pos)
+        
+        pdf = height/pdf.max() * pdf
         
         # Generate the blob height perturbation field.
-        self.grid.hField = height * rv.pdf(pos)[:-1, :-1]
+        self.grid.hField = (height/pdf.max() * pdf)[:-1, :-1]
         
         # Update hField view - this is stupid.
         self.grid.fields["eta"] = self.grid.hField
     
 class Solver:
+    """ 
+    """
     
     def __init__(self, model, scheme, dt, nt, store=False):
         """ 
@@ -111,38 +112,32 @@ class Solver:
         # Functions that should be called each iteration stored here.
         self.customEquations = {}
         
-    def run(self, *phi0):
+    def run(self):
         """ 
-        """
-        # Reset the grid fields.
-        self.model.grid.resetFields()
+        """        
+        # Initialise storage arrays if necessary (only really for animations).
+        if self.store:
+            self.history = []
         
         # Run the simulation for each time step.
         for t in range(self.nt):
             
             # Update the grid (no return since it was passed by reference).
             self.scheme(self.model.eqns, self.model.grid, self.dt, t)
-            
-            # Store state if necessary.
-            # ...
-            
+                        
             # Evaluate any functions added by user (e.g. energy)
             for eqn in self.customEquations.values():
                 
                 # Evaluate the custom eqn for the current grid state.
                 eqn["data"][t+1] = eqn["func"](self.model)
-            
-            # # plotContourSubplot(self.model.grid)
-            # fig, ax = plt.subplots(figsize = (8, 8), facecolor = "white")
-            # plt.title("Velocity field $\mathbf{u}(x,y)$ after 0.0 days", fontname = "serif", fontsize = 19)
-            # plt.xlabel("x [km]", fontname = "serif", fontsize = 16)
-            # plt.ylabel("y [km]", fontname = "serif", fontsize = 16)
-            # q_int = 3
-            # Q = ax.quiver(self.model.grid.X[::q_int, ::q_int]/1000.0, self.model.grid.Y[::q_int, ::q_int]/1000.0, self.model.grid.uField[::q_int,::q_int], self.model.grid.vField[::q_int,::q_int],
-            #     scale=0.05, scale_units='inches')
-            # plt.show()
-    
-    def runEnsemble(self, numEnsembles, perturbationRange, *phi0):
+                
+            # Store state if necessary (Could just use grid.fields instead).
+            if self.store:
+                self.history.append([self.model.grid.uField.copy(),
+                                     self.model.grid.vField.copy(),
+                                     self.model.grid.hField.copy()])
+                
+    def runEnsemble(self, numEnsembles, perturbationRange):
         """ 
         """
         pass
