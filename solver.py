@@ -69,7 +69,7 @@ class Model:
         ny = (Y/self.grid.dy).astype(int)
         
         # Update the appropriate fields.
-        self.grid.hField[nx[0]:nx[1], ny[0]:ny[1]] = height
+        self.grid.hField[ny[0]:ny[1], nx[0]:nx[1]] = height
         
         # Update hField view - this is stupid.
         self.grid.fields["eta"] = self.grid.hField
@@ -85,10 +85,10 @@ class Model:
         
         pdf = multivariate_normal(mu, [[var[0], 0], [0, var[1]]]).pdf(pos)
         
-        pdf = height/pdf.max() * pdf
+        # pdf = height/pdf.max() * pdf
         
         # Generate the blob height perturbation field.
-        self.grid.hField = (height/pdf.max() * pdf)[:-1, :-1]
+        self.grid.hField += (height/pdf.max() * pdf)[:-1, :-1]
         
         # Update hField view - this is stupid.
         self.grid.fields["eta"] = self.grid.hField
@@ -127,8 +127,6 @@ class Solver:
                         
             # Evaluate any functions added by user (e.g. energy)
             for eqn in self.customEquations.values():
-                
-                # Evaluate the custom eqn for the current grid state.
                 eqn["data"][t+1] = eqn["func"](self.model)
                 
             # Store state if necessary (Could just use grid.fields instead).
@@ -136,7 +134,9 @@ class Solver:
                 self.history.append([self.model.grid.uField.copy(),
                                      self.model.grid.vField.copy(),
                                      self.model.grid.hField.copy()])
-                
+            
+            plotContourSubplot(self.model.grid)
+            
     def runEnsemble(self, numEnsembles, perturbationRange):
         """ 
         """

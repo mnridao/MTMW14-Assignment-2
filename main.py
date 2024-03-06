@@ -18,8 +18,8 @@ def calculateEnergy(model):
     """
     params = model.eqns[0].params
     return (np.sum(0.5*params.rho*(model.grid.uField[:, :-1]**2 + 
-                                  model.grid.vField[:-1, :]**2 + 
-                                  params.g*model.grid.hField**2)) * 
+                                   model.grid.vField[:-1, :]**2 + 
+                                   params.g*model.grid.hField**2)) * 
             model.grid.dx**2)
 
 def calculateTimestepCFL(c, d):
@@ -32,13 +32,14 @@ if __name__ == "__main__":
     # Grid creation.
     xbounds = [0, 1e6]
     xL = xbounds[1]
-    dx = 25e3
+    dx = 20e3
     nx = int((xbounds[1] - xbounds[0])/dx)
     grid = ArakawaCGrid(xbounds, nx)
     
     # Time stepping information.
-    dt = calculateTimestepCFL(100, dx) - 3
-    endtime = 10*24*60**2 
+    # dt = calculateTimestepCFL(100, dx) - 5
+    dt = 100
+    endtime = 15*24*60**2 
     nt = int(np.ceil(endtime/dt))
     
     # Set up the model and solver.
@@ -61,7 +62,6 @@ if __name__ == "__main__":
     plt.show()
         
     #%% Task E (energy)
-    
     # Half the grid spacing and find new time step.
     solver.model.grid = ArakawaCGrid(xbounds, nx*2)
     
@@ -83,17 +83,19 @@ if __name__ == "__main__":
     plt.show()
     
     #%% Turn rotation on/off.
-
+    solver.model.grid.resetFields()
     solver.model.activateBetaPlane(False)
     solver.run()
     plotContourSubplot(solver.model.grid)
     
     #%% Turn wind on/off.
+    solver.model.grid.resetFields()
     solver.model.activateWindStress(True)
     solver.run()
     plotContourSubplot(solver.model.grid)
     
     #%% Gravity wave with step initial condition.
+    solver.model.grid.resetFields()
     solver.model.activateBetaPlane(False)
     solver.model.activateWindStress(False)
     
@@ -118,24 +120,53 @@ if __name__ == "__main__":
     plotContourSubplot(solver.model.grid)
     
     #%% Kelvin wave attempt (increase beta?).
+    solver.model.grid.resetFields()
+    solver.store = True
+    
     solver.model.activateBetaPlane(True)
     solver.model.activateWindStress(False)
     
     # Create new grid for equatorial beta plate.
     grid = ArakawaCGrid(xbounds, nx, [-0.5*xL, 0.5*xL])
-    
+
     # Equatorial beta plane.
     solver.model.setf0(0)
     solver.model.setBeta(5e-8)   # Increase the effects of rotation.
     solver.model.grid = grid
     
-    solver.model.setStepInitialCondition(xL*np.array([0., 0.05]), 
-                                         xL*np.array([0.5, 0.55]), 100*dx)
+    solver.model.setBlobInitialCondition(np.array([0, 0]), 
+                                          ((5*dx)**2*np.array([2, 2])**2), 100)
     
-    solver.run()
+    # solver.run()
     plotContourSubplot(solver.model.grid)
     
+    #%% Rossby wave attempt (using easterly jet initial condition).
     
+    solver.model.grid.resetFields()
+        
+    # # Setup equatorial beta plane.
+    solver.model.activateBetaPlane(True)
+    # solver.model.activateWindStress(False)
+    grid = ArakawaCGrid(xbounds, nx, [-0.5*xL, 0.5*xL])
+    solver.model.setf0(0)
+    solver.model.setBeta(1e-10)   # Increase the effects of rotation.
+    solver.model.grid = grid
+    
+    # # # Easterly jet initial condition.
+    Y = solver.model.grid.Y
+    # solver.model.grid.hField = (10000 - 50.*np.cos((Y-np.mean(Y))*2.*np.pi/np.max(Y)))[:-1, :-1]
+        
+    # # Zonal jet initial condition.
+    solver.model.grid.hField = (10000 - np.tanh(20.*((Y-np.mean(Y))/Y.max()))*400)[:-1, :-1]
+    # # solver.model.setBeta(5e-10)
+    
+    # Update viewer.
+    solver.model.grid.fields["eta"] = solver.model.grid.hField
+    solver.store = True
+    # solver.nt = 500
+    solver.run()
+    
+    plotContourSubplot(solver.model.grid)
     #%% Trying out different plots.
     solver.model.grid.resetFields()
     
@@ -143,7 +174,7 @@ if __name__ == "__main__":
     # solver.model.setStepInitialCondition(xL*np.array([0.5, 0.55]), 
     #                                        xL*np.array([0.5, 0.55]), 50*dx)
     solver.model.setBlobInitialCondition(xL*np.array([0.5, 0.55]), 
-                                          (dx**2*np.array([2, 2])**2), 100)
+                                          ((5*dx)**2*np.array([2, 2])**2), 100)
     plotContourSubplot(solver.model.grid)
     solver.run()
     
@@ -153,7 +184,7 @@ if __name__ == "__main__":
     for state in solver.history:
     
         fig, ax = plt.subplots(figsize = (8, 8), facecolor = "white")
-        plt.title("Velocity field $\mathbf{u}(x,y)$ after 0.0 days", fontname = "serif", fontsize = 19)
+        plt.title("Velocity field $\mathbf{u}(x,y)$ after 0.0 days", fontsize = 19)
         plt.xlabel("x [km]", fontsize = 16)
         plt.ylabel("y [km]", fontsize = 16)
         q_int = 3
@@ -161,7 +192,7 @@ if __name__ == "__main__":
                       solver.model.grid.Y[::q_int, ::q_int]/1000.0, 
                       state[0][::q_int,::q_int], 
                       state[1][::q_int,::q_int],
-            scale=5, scale_units='inches')
+            scale=10, scale_units='inches')
         plt.show()
         
     #%% Plot height perturbation contour plots.
@@ -191,8 +222,8 @@ if __name__ == "__main__":
     
     #%% Plot heigh perturbation surface plots.
     
-    minH = min(np.min(state[2]) for state in solver.history)
-    maxH = max(np.max(state[2]) for state in solver.history)
+    minH = min(np.min(state[2]) for state in solver.history[::100])
+    maxH = max(np.max(state[2]) for state in solver.history[::100])
     
     for state in solver.history:
         
@@ -207,10 +238,10 @@ if __name__ == "__main__":
                                state[2], 
                                 cmap='viridis', 
                                rstride=5, cstride=5, antialiased=True,
-                                vmin=minH, vmax=maxH
+                                # vmin=minH, vmax=maxH
                                )
         
-        ax.set_zlim(-5, 100)
+        ax.set_zlim(minH, maxH)
         
         # Customize the plot
         ax.set_xlabel('X [km]', fontsize=25)
@@ -231,18 +262,18 @@ if __name__ == "__main__":
     def update(frame):
         ax.clear()
     
-        state = solver.history[frame]
+        state = solver.history[:400][frame]
     
         # Plot the surface
         surf = ax.plot_surface(solver.model.grid.X[:-1, :-1],
                                 solver.model.grid.Y[:-1, :-1],
-                                solver.history[frame][2],
+                                state[2],
                                 cmap='viridis',
                                 rstride=5, cstride=5, antialiased=True,
                                 vmin=minH, vmax=maxH
                                 )
     
-        ax.set_zlim(-5, 3 * dx)
+        ax.set_zlim(minH, maxH)
         ax.set_xlabel('X [km]', fontsize=25)
         ax.set_ylabel('Y [km]', fontsize=25)
         ax.set_title(f'Frame {frame}', fontsize=25)
@@ -250,10 +281,12 @@ if __name__ == "__main__":
         return surf,
     
     # The total number of frames is the length of the solver history
-    total_frames = len(solver.history)
+    total_frames = len(solver.history[:200])
     
     # Use FuncAnimation to create the animation
-    animation = FuncAnimation(fig, update, frames=total_frames, interval=200)
+    animation = FuncAnimation(fig, update, frames=total_frames
+                               , interval=200
+                              )
     
     plt.show()
     
@@ -261,7 +294,7 @@ if __name__ == "__main__":
     from matplotlib.animation import PillowWriter
     
     writer = PillowWriter(fps=30)
-    animation.save("sine_example.gif", writer=writer)
+    animation.save("rossbyAttempt3.gif", writer=writer)
     
     # Close the figure to avoid displaying it twice
     plt.close(fig)

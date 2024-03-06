@@ -28,17 +28,7 @@ class ArakawaCGrid:
         
         # Set up arrays representing the 2D grid.
         self.createGrid()
-        
-        # # Initialise default state variables.
-        # self.uField = np.zeros(shape=(self.ny, self.nx+1))
-        # self.vField = np.zeros(shape=(self.ny+1, self.nx))
-        # self.hField = np.zeros(shape=(self.nx, self.ny))
-        
-        # # Store by ref in dictionary for iterating over fields.
-        # self.fields = {"uVelocity" : self.uField[:, 1:-1],
-        #                "vVelocity" : self.vField[1:-1, :],
-        #                "eta"       : self.hField}
-        
+                
         # Initialise the default state variables.
         self.resetFields()
         

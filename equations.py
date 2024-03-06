@@ -84,7 +84,7 @@ class BaseEqnSWE(ABC):
     @abstractmethod
     def _f(self, state):
         pass
-    
+        
 class UVelocity(BaseEqnSWE):
     """ 
     """
