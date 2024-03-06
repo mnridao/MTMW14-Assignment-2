@@ -100,14 +100,14 @@ class UVelocity(BaseEqnSWE):
         # Height perturbation gradient in x-direction.
         detadx = (grid.hField[:, 1:] - grid.hField[:, :-1])/grid.dx
 
-        # Coriolis parameter.
+        # Coriolis parameter (at half grid points assuming c grid - make more general?).
         f = (self.params.betaPlaneActive*
-             (self.params.f0 + self.params.beta*grid.Y))
+             (self.params.f0 + self.params.beta*grid.Ymid))
         
         # Wind forcing in x-direction.
         tauX = self.params.tauX(grid.Y, grid.xbounds[1])
         
-        return (f[:-1, 1:-1]*grid.vOnUField() - self.params.g*detadx - 
+        return (f[:, :-1]*grid.vOnUField() - self.params.g*detadx - 
                 self.params.gamma*grid.uField[:, 1:-1] + 
                 tauX[:-1, 1:-1]/(self.params.rho*self.params.H))
         

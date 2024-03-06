@@ -35,10 +35,21 @@ class ArakawaCGrid:
     def createGrid(self):
         """ 
         """
+        
+        # Create full-point grid.
         xpoints = np.linspace(self.xbounds[0], self.xbounds[1], self.nx+1)
         ypoints = np.linspace(self.ybounds[0], self.ybounds[1], self.ny+1)
         
         self.X, self.Y = np.meshgrid(xpoints, ypoints)
+        
+        # Create mid-point grid.
+        xpointsHalf = np.linspace(self.xbounds[0]+0.5*self.dx, 
+                                  self.xbounds[1]-0.5*self.dx, self.nx)
+        ypointsHalf = np.linspace(self.ybounds[0]+0.5*self.dy,
+                                  self.ybounds[1]-0.5*self.dy, self.ny)
+        
+        self.Xmid, self.Ymid = np.meshgrid(xpointsHalf, ypointsHalf)
+
         
     def resetFields(self):
         """ 
