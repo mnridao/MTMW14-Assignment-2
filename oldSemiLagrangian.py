@@ -14,6 +14,19 @@ from equations import UVelocity, VVelocity, Eta
 
 from plotters import plotContourSubplot
 
+"""
+Thoughts:
+    
+    - Bring back the State class, just pass in fields and points to eqns?
+    - Have gradient fields in the grid class???
+    
+    - rethink how information is passed into equations
+    - want semi lagrangian to look nice
+    
+    - if using forcings method for equations make all calls using this function in sl?
+    - might just go with this?
+"""
+
 
 if __name__ == "__main__":
     
@@ -26,7 +39,7 @@ if __name__ == "__main__":
     
     # Time stepping information.
     dt = 350
-    endtime = 30*24*60**2 
+    endtime = 100*24*60**2 
     nt = int(np.ceil(endtime/dt))
     
     dy = dx
@@ -161,7 +174,7 @@ if __name__ == "__main__":
         
         # Find new eta.
         solver.model.grid.hField = hField2 + 0.5*dt*(model.eqns[0](solver.model.grid) +
-                                                     model.eqns[0].forcings(dudxDP, dvdyDP))
+                                                     model.eqns[0].forcings(dudxDP, dvdyDP)) # Don't like this.
         
         # Update solver grid.
         solver.model.grid.fields["eta"] = solver.model.grid.hField
@@ -171,6 +184,7 @@ if __name__ == "__main__":
         # Update the eta interpolater.
         interpH = RegularGridInterpolator((Ymid[:, 0], Xmid[0, :]), solver.model.grid.hField, 
                                           bounds_error=False, fill_value=None, method=interpMethod)    
+        #%%
         ## U-VELOCITY STEP ## 
         
         # -- Half time step -- #

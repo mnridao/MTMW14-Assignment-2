@@ -63,6 +63,11 @@ class ArakawaCGrid:
         self.fields = {"uVelocity" : self.uField[:, 1:-1],
                        "vVelocity" : self.vField[1:-1, :],
                        "eta"       : self.hField}
+    
+    def dudxField(self):
+        """ 
+        """
+        pass
         
     def vOnUField(self):
         """ 

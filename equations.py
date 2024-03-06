@@ -154,4 +154,9 @@ class Eta(BaseEqnSWE):
         dvdy = (grid.vField[1:, :] - grid.vField[:-1, :]) / grid.dy
         
         # Calculate new height perturbation.
+        return self.forcings(dudx, dvdy)
+    
+    def forcings(self, dudx, dvdy):
+        """ 
+        """
         return - self.params.H*(dudx + dvdy)

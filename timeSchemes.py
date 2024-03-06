@@ -55,9 +55,11 @@ if __name__ == "__main__":
     scheme = forwardBackwardSchemeCoupled
     model = Model([Eta(), UVelocity(), VVelocity()], grid)
     solver = Solver(model, scheme, dt, 1)
-    solver.run()
+    # solver.run()
     
     params = Parameters()
+    
+    interpMethod = "cubic"
     
     #%% One time step later.
     from scipy.interpolate import RegularGridInterpolator
@@ -80,14 +82,14 @@ if __name__ == "__main__":
     
     ## Current time step interpolators.
     interpU = RegularGridInterpolator((Ymid[:, 0], X[0, 1:-1]), grid.uField[:, 1:-1],
-                                      bounds_error=False, fill_value=None)
+                                      bounds_error=False, fill_value=None, method=interpMethod)
     interpV = RegularGridInterpolator((Y[1:-1, 0], Xmid[0, :]), grid.vField[1:-1, :], 
-                                      bounds_error=False, fill_value=None)
+                                      bounds_error=False, fill_value=None, method=interpMethod)
     interpH = RegularGridInterpolator((Ymid[:, 0], Xmid[0, :]), grid.hField, 
-                                      bounds_error=False, fill_value=None)
+                                      bounds_error=False, fill_value=None, method=interpMethod)
     #%%
     
-    for _ in range(nt):
+    for _ in range(705):
     
         ## HEIGHT PERTURBATION STEP ##
             
@@ -123,7 +125,7 @@ if __name__ == "__main__":
         
         # Update the eta interpolater.
         interpH = RegularGridInterpolator((Ymid[:, 0], Xmid[0, :]), solver.model.grid.hField, 
-                                          bounds_error=False, fill_value=None)
+                                          bounds_error=False, fill_value=None, method=interpMethod)
         
         ## U-VELOCITY STEP ## 
         
@@ -150,7 +152,7 @@ if __name__ == "__main__":
         
         # Update the u-velocity interpolator.
         interpU = RegularGridInterpolator((Ymid[:, 0], X[0, 1:-1]), solver.model.grid.uField[:, 1:-1],
-                                          bounds_error=False, fill_value=None)
+                                          bounds_error=False, fill_value=None, method=interpMethod)
         
         # plotContourSubplot(solver.model.grid)
         
@@ -178,6 +180,6 @@ if __name__ == "__main__":
         
         # Update the interpolator.
         interpV = RegularGridInterpolator((Y[1:-1, 0], Xmid[0, :]), solver.model.grid.vField[1:-1, :], 
-                                          bounds_error=False, fill_value=None)
+                                          bounds_error=False, fill_value=None, method=interpMethod)
         
     plotContourSubplot(solver.model.grid)
