@@ -35,7 +35,7 @@ if __name__ == "__main__":
     dx = 20e3
     nx = int((xbounds[1] - xbounds[0])/dx)
     grid = ArakawaCGrid(xbounds, nx)
-    
+
     # Time stepping information.
     # dt = calculateTimestepCFL(100, dx) - 5
     dt = 100
@@ -49,6 +49,13 @@ if __name__ == "__main__":
     
     # Add energy calculator to solver.
     solver.addCustomEquations("energy", calculateEnergy)
+    
+    #%% Periodic grid test
+    
+    grid2 = ArakawaCGrid(xbounds, nx, periodicX=True, periodicY=True)
+    
+    u2 = grid2.uOnVField()
+    v2 = grid2.vOnUField()
         
     #%% Task D (get plots working here)
     solver.run()

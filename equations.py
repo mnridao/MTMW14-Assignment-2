@@ -93,16 +93,26 @@ class UVelocity(BaseEqnSWE):
         super().__init__() 
         
         self.name = "uVelocity"
-                
+    
+    # def _f(self, grid):
+    #     """ 
+    #     """
+        
+    #     # Height perturbation in x-direction.
+    #     detadx = (np.roll(grid.hField, -1, 1) - grid.hField) /grid.dx
+        
+    #     # Coriolis parameter.
+        
     def _f(self, grid):
         """ 
         """        
         # Height perturbation gradient in x-direction.
-        detadx = (grid.hField[:, 1:] - grid.hField[:, :-1])/grid.dx
+        # detadx = (grid.hField[:, 1:] - grid.hField[:, :-1])/grid.dx
+        detadx = grid.detadxField()
 
         # Coriolis parameter (at half grid points assuming c grid - make more general?).
         f = (self.params.betaPlaneActive*
-             (self.params.f0 + self.params.beta*grid.Ymid))
+              (self.params.f0 + self.params.beta*grid.Ymid))
         
         # Wind forcing in x-direction.
         tauX = self.params.tauX(grid.Y, grid.xbounds[1])
@@ -111,6 +121,12 @@ class UVelocity(BaseEqnSWE):
                 self.params.gamma*grid.uField[:, 1:-1] + 
                 tauX[:-1, 1:-1]/(self.params.rho*self.params.H))
         
+    def forcings(self, u, v, detadx, Y):
+        """ 
+        """
+        
+        pass
+    
 class VVelocity(BaseEqnSWE):
     """ 
     """
@@ -119,16 +135,23 @@ class VVelocity(BaseEqnSWE):
         super().__init__()
         
         self.name = "vVelocity"
+    
+    # def _f(self, grid):
+    #     """ 
+    #     """
         
+    #     pass
+    
     def _f(self, grid):
         """ 
         """        
         # Height perturbation gradient in y-direction.
-        detady = (grid.hField[1:, :] - grid.hField[:-1, :])/grid.dy
+        # detady = (grid.hField[1:, :] - grid.hField[:-1, :])/grid.dy
+        detady = grid.detadyField()
 
         # Coriolis parameter.
         f = (self.params.betaPlaneActive*
-             (self.params.f0 + self.params.beta*grid.Y))
+              (self.params.f0 + self.params.beta*grid.Y))
         
         # Wind forcing in y-direction.
         tauY = self.params.tauY(grid.Y)
@@ -137,6 +160,22 @@ class VVelocity(BaseEqnSWE):
                 self.params.gamma*grid.vField[1:-1, :] + 
                 tauY[1:-1,:-1]/(self.params.rho*self.params.H))
         
+    def forcings(self, u, v, detady, Y):
+        """ 
+        """
+        
+        # Calculate coriolis parameter on the grid.
+        f = (self.params.betaPlaneActive*
+             (self.params.f0 + self.params.beta*Y))
+        
+        # Calculate the wind forcing on the grid.
+        tauY = self.params.tauY(Y)
+        
+        # TODO: can i make this more general for different bc?
+        return (-f[1:-1,:-1]*u - self.params.g*detady - 
+                self.params.gamma*v[1:-1, :] + 
+                tauY[1:-1,:-1]/(self.params.rho*self.params.H))
+    
 class Eta(BaseEqnSWE):
     """ 
     """
@@ -145,16 +184,22 @@ class Eta(BaseEqnSWE):
         super().__init__()
         
         self.name = "eta"
+    
+    # def _f(self, grid):
+    #     """ 
+    #     """
         
+    #     pass
+    
     def _f(self, grid):
         """ 
         """
         # Calculate velocity gradients throughout the domain.
-        dudx = (grid.uField[:, 1:] - grid.uField[:, :-1]) / grid.dx
-        dvdy = (grid.vField[1:, :] - grid.vField[:-1, :]) / grid.dy
-        
+        # dudx = (grid.uField[:, 1:] - grid.uField[:, :-1]) / grid.dx
+        # dvdy = (grid.vField[1:, :] - grid.vField[:-1, :]) / grid.dy
+                
         # Calculate new height perturbation.
-        return self.forcings(dudx, dvdy)
+        return self.forcings(grid.dudxField(), grid.dvdyField())
     
     def forcings(self, dudx, dvdy):
         """ 
