@@ -48,32 +48,7 @@ class Model:
         for eqn in self.eqns:
             eqn.params.setWindStressX("default" if activate else "off")
             eqn.params.setWindStressY("default" if activate else "off")
-    
-    def setInitialCondition(self, key, *args):
-        """ 
-        """
-        
-        if key == "step":
-                        
-            self.setStepInitialCondition(*args)
-        
-        elif key == "blob":
             
-            self.setBlobInitialCondition(*args)
-            
-    def setStepInitialCondition(self, X, Y, height):
-        """ 
-        """
-        # Convert to indices.
-        nx = (X/self.grid.dx).astype(int)
-        ny = (Y/self.grid.dy).astype(int)
-        
-        # Update the appropriate fields.
-        self.grid.hField[ny[0]:ny[1], nx[0]:nx[1]] = height
-        
-        # Update hField view - this is stupid.
-        self.grid.fields["eta"] = self.grid.hField
-        
     def setBlobInitialCondition(self, mu, var, height):
         """ 
         """

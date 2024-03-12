@@ -101,19 +101,7 @@ if __name__ == "__main__":
     solver.model.activateWindStress(True)
     solver.run()
     plotContourSubplot(solver.model.grid)
-    
-    #%% Gravity wave with step initial condition.
-    solver.model.grid.resetFields()
-    solver.model.activateBetaPlane(False)
-    solver.model.activateWindStress(False)
-    
-    solver.model.setStepInitialCondition(xL*np.array([0.5, 0.55]), 
-                                         xL*np.array([0.5, 0.55]), 100*dx)
-    plotContourSubplot(solver.model.grid)
-    
-    solver.run()
-    plotContourSubplot(solver.model.grid)
-    
+        
     #%% Gravity wave with blob initial condition.
     solver.model.grid.resetFields()
     
@@ -181,8 +169,6 @@ if __name__ == "__main__":
     solver.model.grid.resetFields()
     
     solver.store = True
-    # solver.model.setStepInitialCondition(xL*np.array([0.5, 0.55]), 
-    #                                        xL*np.array([0.5, 0.55]), 50*dx)
     solver.model.setBlobInitialCondition(xL*np.array([0.5, 0.55]), 
                                           ((5*dx)**2*np.array([2, 2])**2), 100)
     plotContourSubplot(solver.model.grid)
