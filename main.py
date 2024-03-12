@@ -32,15 +32,16 @@ if __name__ == "__main__":
     # Grid creation.
     xbounds = [0, 1e6]
     xL = xbounds[1]
-    dx = 20e3
+    dx = 5e3
     nx = int((xbounds[1] - xbounds[0])/dx)
-    grid = ArakawaCGrid(xbounds, nx)
+    grid = ArakawaCGrid(xbounds, nx, periodicX=True)
 
     # Time stepping information.
-    # dt = calculateTimestepCFL(100, dx) - 5
-    dt = 100
+    dt = 0.95*calculateTimestepCFL(100, dx)
+    # dt = 100
     endtime = 15*24*60**2 
-    nt = int(np.ceil(endtime/dt))
+    # nt = int(np.ceil(endtime/dt))
+    nt = 400
     
     # Set up the model and solver.
     scheme = forwardBackwardSchemeCoupled
@@ -48,24 +49,24 @@ if __name__ == "__main__":
     solver = Solver(model, scheme, dt, nt)
     
     # Add energy calculator to solver.
-    solver.addCustomEquations("energy", calculateEnergy)
+    # solver.addCustomEquations("energy", calculateEnergy)
     
     #%% Periodic grid test
     
-    grid2 = ArakawaCGrid(xbounds, nx, periodicX=True, periodicY=True)
+    grid2 = ArakawaCGrid(xbounds, nx, periodicX=True)
     
     u2 = grid2.uOnVField()
     v2 = grid2.vOnUField()
         
     #%% Task D (get plots working here)
     solver.run()
-    energy = solver.getCustomData("energy")
+    # energy = solver.getCustomData("energy")
     plotContourSubplot(solver.model.grid)
     
     # Plot energy.
     time = np.arange(0, solver.dt*(solver.nt+1), solver.dt)
     plt.figure(figsize=(10, 10))
-    plt.plot(energy)
+    # plt.plot(energy)
     plt.show()
         
     #%% Task E (energy)
@@ -83,8 +84,8 @@ if __name__ == "__main__":
     
     timeHalf = np.arange(0, solver.dt*(solver.nt+1), solver.dt)
     plt.figure(figsize=(10, 10))
-    plt.plot(time, energy, label="$\Delta x$=50km")
-    plt.plot(timeHalf, energyHalf, label="$\Delta x$=25km")
+    # plt.plot(time, energy, label="$\Delta x$=50km")
+    # plt.plot(timeHalf, energyHalf, label="$\Delta x$=25km")
     plt.grid()
     plt.legend()
     plt.show()
@@ -119,12 +120,13 @@ if __name__ == "__main__":
     solver.model.activateBetaPlane(False)
     solver.model.activateWindStress(False)
     
-    solver.model.setBlobInitialCondition(xL*np.array([0.5, 0.55]), 
-                                          (dx**2*np.array([2, 2])**2), 0.01*dx)
+    solver.model.setBlobInitialCondition(xL*np.array([0.01, 0.55]), 
+                                          (0.15*dx**2*np.array([2, 2])**2), 0.01*dx)
     plotContourSubplot(solver.model.grid)
     
+    solver.store = True
     solver.run()
-    plotContourSubplot(solver.model.grid)
+    # plotContourSubplot(solver.model.grid)
     
     #%% Kelvin wave attempt (increase beta?).
     solver.model.grid.resetFields()
@@ -141,10 +143,10 @@ if __name__ == "__main__":
     solver.model.setBeta(5e-8)   # Increase the effects of rotation.
     solver.model.grid = grid
     
-    solver.model.setBlobInitialCondition(np.array([0, 0]), 
+    solver.model.setBlobInitialCondition(np.array([0.01, 0]), 
                                           ((5*dx)**2*np.array([2, 2])**2), 100)
     
-    # solver.run()
+    solver.run()
     plotContourSubplot(solver.model.grid)
     
     #%% Rossby wave attempt (using easterly jet initial condition).

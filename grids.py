@@ -78,106 +78,71 @@ class ArakawaCGrid:
         # TODO: Update the views below for periodic boundaries.
         
         # Store by ref in dictionary for iterating over fields.
-        self.fields = {"uVelocity" : self.uField[:, 1:-1],
-                       "vVelocity" : self.vField[1:-1, :],
+        self.fields = {"uVelocity" : self.uField if self.periodicX else self.uField[:, 1:-1],
+                       "vVelocity" : self.vField if self.periodicY else self.vField[1:-1, :],
                        "eta"       : self.hField}
+    
+    def updateField(key, field):
+        """ 
+        """
+        
+        pass
     
     def dudxField(self):
         """ 
         """
         
-        return self.gradientFieldX(self.uField)
+        return self.forwardGradientFieldX(self.uField)
             
     def dvdyField(self):
         """ 
         """
         
-        return self.gradientFieldY(self.vField)
+        return self.forwardGradientFieldY(self.vField)
         
     def detadxField(self):
         """ 
         """
         
-        return self.gradientFieldX(self.hField)
+        return self.backwardGradientFieldX(self.hField)
     
     def detadyField(self):
         """ 
         """
         
-        return self.gradientFieldY(self.hField)
+        return self.backwardGradientFieldY(self.hField)
     
     def vOnUField(self):
         """ 
         """
         
-        # What happens if both periodic????????????
-        if self.periodicX and self.periodicY:
-            
-            # Make sure field is the same size as u-field.
-            field = np.zeros_like(self.uField)
-            
-            # Interpolate interior points.
-            field[:-1, :-1] = self.interpolateInterior(self.vField)
-            
-            # Interpolate edge points.
-            
-        
+        # If using reflective boundary conditions we only want interior points.
+        if not (self.periodicX or self.periodicY):
+            return self.interpolateInterior(self.vField)
+                
         # Check for periodic boundary conditions in X axis.
-        if self.periodicX and not self.periodicY:
+        if self.periodicX:
             
             # Make sure field is the same size as u-field.
             field = np.zeros_like(self.uField)
-            
+                        
             # Interpolate interior points.
             field[:, 1:] = self.interpolateInterior(self.vField)
             
             # Interpolate edge points (last point instead????).
             field[:, 0] = (self.vField[:-1, -1] + self.vField[1:, -1] + 
                            self.vField[:-1, 0]  + self.vField[1:, 0])/4
-        
-        elif self.periodicY:
-            # Interior interpolation will miss out the last row in u-field.
-            field = np.zeros_like(self.fields["uVelocity"])
-            
-            # Interpolate interior points.
-            field[:-1, :] = self.interpolateInterior(self.vField)
-            
-            # Interpolate last point.
-            field[-1, :] = (self.vField[0, 1:] + self.vField[0, :-1] + 
-                            self.vField[-1, 1:]  + self.vField[-1, :-1])/4
-        
-        elif not (self.periodicX or self.periodicY):
-            return self.interpolateInterior(self.vField)
+                
+        return field
     
     def uOnVField(self):
         """ 
         """
         
-        # What happens if both periodic???
-        if self.periodicX and self.periodicY:
-            
-            # Make sure field is the same size as v-field.
-            field = np.zeros_like(self.vField)
-            
-            # Interpolate interior points.
-            field[:-1, :-1] = self.interpolateInterior(self.uField)
-            
-            # Interpolate edge points.
-            
-        
-        # Check for periodic boundary conditions in Y axis.
-        elif self.periodicY and not self.periodicX:
-            
-            # Make sure field is the same size as v-field.
-            field = np.zeros_like(self.vField)
-            
-            # Interpolate interior points.
-            field[1:, :] = self.interpolateInterior(self.uField)
-            
-            # Interpolate edge points.
-            field[0, :]  = (self.uField[0, :-1] + self.uField[0, 1:] + 
-                            self.uField[-1, :-1] + self.uField[-1, 1:])/4
-        
+        # If using reflective boundary conditions we only want interior points.
+        if not (self.periodicY or self.periodicX):
+            return self.interpolateInterior(self.uField)
+                
         elif self.periodicX:
             
             # Interior interpolation will miss out the last col in v-field.
@@ -190,11 +155,9 @@ class ArakawaCGrid:
             field[:, -1] = (self.uField[:-1, 0] + self.uField[:-1, -1] + 
                             self.uField[1:, 0]  + self.uField[1:, -1])/4
         
-        # If using reflective boundary conditions we only want interior points.
-        elif not (self.periodicY or self.periodicX):
-            return self.interpolateInterior(self.uField)
+        return field
     
-    def gradientFieldX(self, field):
+    def forwardGradientFieldX(self, field):
         """ 
         """
         
@@ -204,8 +167,19 @@ class ArakawaCGrid:
         
         # Calculates field based on reflective boundary conditions.
         return (field[:, 1:] - field[:, :-1])/self.dx
+    
+    def backwardGradientFieldX(self, field):
+        """ 
+        """
         
-    def gradientFieldY(self, field):
+        # Calculates field based on periodic boundary conditions.
+        if self.periodicX:
+            return (field - np.roll(field, 1, 1))/self.dx
+        
+        # Calculates field based on reflective boundary conditions. (same?)
+        return (field[:, 1:] - field[:, :-1])/self.dx # i think ok
+    
+    def forwardGradientFieldY(self, field):
         """ 
         """
         
@@ -215,7 +189,17 @@ class ArakawaCGrid:
         
         # Calculates field based on reflective boundary conditions.
         return (field[1:, :] - field[:-1, :])/self.dy
+    
+    def backwardGradientFieldY(self, field):
+        """ 
+        """
+        # Calculates field based on periodic boundary conditions.
+        if self.periodicY:
+            return (field - np.roll(field, 1, 0))/self.dy
         
+        # Calculates field based on reflective boundary conditions. (same?)
+        return (field[1:, :] - field[:-1, :])/self.dy # i think ok
+    
     def interpolateInterior(self, phi):
         """ 
         """

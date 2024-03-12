@@ -78,17 +78,13 @@ class Model:
         """ 
         """
         # Create the Gaussian blob.
-        pos = np.empty(self.grid.X.shape + (2,))
-        pos[..., 0] = self.grid.X
-        pos[..., 1] = self.grid.Y
-        # rv = multivariate_normal(mu, [[var[0], 0], [0, var[1]]])
-        
+        pos = np.empty(self.grid.Xmid.shape + (2,))
+        pos[..., 0] = self.grid.Xmid
+        pos[..., 1] = self.grid.Ymid        
         pdf = multivariate_normal(mu, [[var[0], 0], [0, var[1]]]).pdf(pos)
-        
-        # pdf = height/pdf.max() * pdf
-        
+                
         # Generate the blob height perturbation field.
-        self.grid.hField += (height/pdf.max() * pdf)[:-1, :-1]
+        self.grid.hField += (height/pdf.max() * pdf)
         
         # Update hField view - this is stupid.
         self.grid.fields["eta"] = self.grid.hField
@@ -135,7 +131,7 @@ class Solver:
                                      self.model.grid.vField.copy(),
                                      self.model.grid.hField.copy()])
             
-            # plotContourSubplot(self.model.grid)
+            plotContourSubplot(self.model.grid)
             
     def runEnsemble(self, numEnsembles, perturbationRange):
         """ 
