@@ -131,7 +131,7 @@ class Solver:
                                      self.model.grid.vField.copy(),
                                      self.model.grid.hField.copy()])
             
-            plotContourSubplot(self.model.grid)
+            # plotContourSubplot(self.model.grid)
             
     def runEnsemble(self, numEnsembles, perturbationRange):
         """ 

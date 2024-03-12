@@ -10,8 +10,7 @@ class ArakawaCGrid:
     """
     """
     
-    def __init__(self, xbounds, nx, ybounds=None, ny=None, 
-                 periodicX=False, periodicY=False):
+    def __init__(self, xbounds, nx, ybounds=None, ny=None, periodicX=False):
         """ 
         """
         
@@ -29,7 +28,7 @@ class ArakawaCGrid:
         
         # Store boundary condition.
         self.periodicX = periodicX
-        self.periodicY = periodicY
+        self.periodicY = False       # Remove this option for now.
         
         # Set up arrays representing the 2D grid.
         self.createGrid()

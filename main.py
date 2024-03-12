@@ -30,18 +30,18 @@ def calculateTimestepCFL(c, d):
 if __name__ == "__main__":
         
     # Grid creation.
-    xbounds = [0, 1e6]
+    xbounds = [0, 2.5e7]
     xL = xbounds[1]
-    dx = 5e3
-    nx = int((xbounds[1] - xbounds[0])/dx)
+    dx = 100e3
+    # nx = int((xbounds[1] - xbounds[0])/dx)
+    nx = 254
     grid = ArakawaCGrid(xbounds, nx, periodicX=True)
 
     # Time stepping information.
-    dt = 0.95*calculateTimestepCFL(100, dx)
+    dt = 0.9*calculateTimestepCFL(100, dx)
     # dt = 100
-    endtime = 15*24*60**2 
-    # nt = int(np.ceil(endtime/dt))
-    nt = 400
+    endtime = 10*24*60**2 
+    nt = int(np.ceil(endtime/dt))
     
     # Set up the model and solver.
     scheme = forwardBackwardSchemeCoupled
@@ -136,15 +136,15 @@ if __name__ == "__main__":
     solver.model.activateWindStress(False)
     
     # Create new grid for equatorial beta plate.
-    grid = ArakawaCGrid(xbounds, nx, [-0.5*xL, 0.5*xL])
+    grid = ArakawaCGrid(xbounds, nx, [-0.5*xL, 0.5*xL], periodicX=True)
 
     # Equatorial beta plane.
     solver.model.setf0(0)
-    solver.model.setBeta(5e-8)   # Increase the effects of rotation.
+    solver.model.setBeta(2.5e-11)   # Increase the effects of rotation.
     solver.model.grid = grid
     
-    solver.model.setBlobInitialCondition(np.array([0.01, 0]), 
-                                          ((5*dx)**2*np.array([2, 2])**2), 100)
+    solver.model.setBlobInitialCondition(np.array([0.2*xL, 0]), 
+                                          ((4*dx)**2*np.array([2, 2])**2), 100)
     
     solver.run()
     plotContourSubplot(solver.model.grid)
@@ -156,23 +156,24 @@ if __name__ == "__main__":
     # # Setup equatorial beta plane.
     solver.model.activateBetaPlane(True)
     # solver.model.activateWindStress(False)
-    grid = ArakawaCGrid(xbounds, nx, [-0.5*xL, 0.5*xL])
+    grid = ArakawaCGrid(xbounds, nx, [-0.5*xL, 0.5*xL], periodicX=True)
     solver.model.setf0(0)
-    solver.model.setBeta(1e-10)   # Increase the effects of rotation.
+    solver.model.setBeta(1e-11)   # Increase the effects of rotation.
     solver.model.grid = grid
     
-    # # # Easterly jet initial condition.
-    Y = solver.model.grid.Y
-    # solver.model.grid.hField = (10000 - 50.*np.cos((Y-np.mean(Y))*2.*np.pi/np.max(Y)))[:-1, :-1]
+    # Easterly jet initial condition.
+    Y = solver.model.grid.Ymid
+    solver.model.grid.hField = (10000 - 50.*np.cos((Y-np.mean(Y))*4.*np.pi/np.max(Y)))
         
-    # # Zonal jet initial condition.
-    solver.model.grid.hField = (10000 - np.tanh(20.*((Y-np.mean(Y))/Y.max()))*400)[:-1, :-1]
-    # # solver.model.setBeta(5e-10)
+    # # # Zonal jet initial condition.
+    # # solver.model.grid.hField = (10000 - np.tanh(20.*((Y-np.mean(Y))/Y.max()))*400)[:-1, :-1]
+    # # # solver.model.setBeta(5e-10)
     
     # Update viewer.
     solver.model.grid.fields["eta"] = solver.model.grid.hField
-    solver.store = True
+    # solver.store = True
     # solver.nt = 500
+
     solver.run()
     
     plotContourSubplot(solver.model.grid)
@@ -242,8 +243,8 @@ if __name__ == "__main__":
         # norm = colors.Normalize(vmin=minH, vmax=maxH)
         
         # Plot the surface
-        surf = ax.plot_surface(solver.model.grid.X[:-1, :-1], 
-                               solver.model.grid.Y[:-1, :-1], 
+        surf = ax.plot_surface(solver.model.grid.Xmid, 
+                               solver.model.grid.Ymid, 
                                state[2], 
                                 cmap='viridis', 
                                rstride=5, cstride=5, antialiased=True,
@@ -271,11 +272,11 @@ if __name__ == "__main__":
     def update(frame):
         ax.clear()
     
-        state = solver.history[:400][frame]
+        state = solver.history[frame]
     
         # Plot the surface
-        surf = ax.plot_surface(solver.model.grid.X[:-1, :-1],
-                                solver.model.grid.Y[:-1, :-1],
+        surf = ax.plot_surface(solver.model.grid.Xmid,
+                                solver.model.grid.Ymid,
                                 state[2],
                                 cmap='viridis',
                                 rstride=5, cstride=5, antialiased=True,
@@ -290,7 +291,7 @@ if __name__ == "__main__":
         return surf,
     
     # The total number of frames is the length of the solver history
-    total_frames = len(solver.history[:200])
+    total_frames = len(solver.history)
     
     # Use FuncAnimation to create the animation
     animation = FuncAnimation(fig, update, frames=total_frames
@@ -303,7 +304,7 @@ if __name__ == "__main__":
     from matplotlib.animation import PillowWriter
     
     writer = PillowWriter(fps=30)
-    animation.save("rossbyAttempt3.gif", writer=writer)
+    animation.save("kelvinWavePeriodic2.gif", writer=writer)
     
     # Close the figure to avoid displaying it twice
     plt.close(fig)
