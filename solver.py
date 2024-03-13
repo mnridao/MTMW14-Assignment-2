@@ -4,65 +4,8 @@ MTMW14 Assignment 2
 Student ID: 31827379
 """
 import numpy as np
-from scipy.stats import multivariate_normal
 
 from plotters import plotContourSubplot
-import matplotlib.pyplot as plt
-
-class Model:
-    """ 
-    """
-        
-    def __init__(self, eqns, grid):
-        """ 
-        """
-        # Model equations and domain.
-        self.eqns = eqns
-        self.grid = grid
-                    
-    def setf0(self, f0):
-        """ 
-        """
-        # Update f0 for each of the equations in the model.
-        for eqn in self.eqns:
-            eqn.params.f0 = f0
-    
-    def setBeta(self, beta):
-        """ 
-        """
-        # Update beta for each of the equations in the model.
-        for eqn in self.eqns:
-            eqn.params.beta = beta
-    
-    def activateBetaPlane(self, activate):
-        """ 
-        """
-        # Activate or deactivate the beta plane for all the model equations.
-        for eqn in self.eqns:
-            eqn.params.betaPlaneActive = activate
-    
-    def activateWindStress(self, activate):
-        """
-        """
-        # Activate or deactivate the wind stress for all the model equations.
-        for eqn in self.eqns:
-            eqn.params.setWindStressX("default" if activate else "off")
-            eqn.params.setWindStressY("default" if activate else "off")
-            
-    def setBlobInitialCondition(self, mu, var, height):
-        """ 
-        """
-        # Create the Gaussian blob.
-        pos = np.empty(self.grid.Xmid.shape + (2,))
-        pos[..., 0] = self.grid.Xmid
-        pos[..., 1] = self.grid.Ymid        
-        pdf = multivariate_normal(mu, [[var[0], 0], [0, var[1]]]).pdf(pos)
-                
-        # Generate the blob height perturbation field.
-        self.grid.hField += (height/pdf.max() * pdf)
-        
-        # Update hField view - this is stupid.
-        self.grid.fields["eta"] = self.grid.hField
     
 class Solver:
     """ 

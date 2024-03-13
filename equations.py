@@ -12,9 +12,8 @@ class Parameters:
     """
     
     def __init__(self):
-        
-        # self.windStressActivated = True # Not used atm.
-        self.betaPlaneActive = True
+        """ 
+        """        
         
         ## DEFAULT PARAMETERS ##
         
@@ -27,10 +26,7 @@ class Parameters:
 
         ## DEFAULT FORCING PARAMETERS ##
         self.setDefaultWindStress()
-        
-    def updateParameters(self):
-        pass
-        
+                
     def setDefaultWindStress(self):
         """ 
         """
@@ -113,8 +109,7 @@ class UVelocity(BaseEqnSWE):
         """
         
         # Coriolis parameter (at half grid points - assumes c grid).
-        f = (self.params.betaPlaneActive*
-              (self.params.f0 + self.params.beta*Y))[..., :u.shape[1]]
+        f = (self.params.f0 + self.params.beta*Y)[..., :u.shape[1]]
                 
         # Wind forcing in x-direction.
         tauX = self.params.tauX(Y, L)[..., :u.shape[1]]
@@ -150,8 +145,7 @@ class VVelocity(BaseEqnSWE):
         """
         
         # Coriolis parameter.
-        f = (self.params.betaPlaneActive*
-              (self.params.f0 + self.params.beta*Y))
+        f = self.params.f0 + self.params.beta*Y
         
         # Wind forcing in y-direction.        
         tauY = self.params.tauY(Y)

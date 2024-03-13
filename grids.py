@@ -26,7 +26,7 @@ class ArakawaCGrid:
         self.dx = (self.xbounds[1] - self.xbounds[0]) / self.nx
         self.dy = (self.ybounds[1] - self.ybounds[0]) / self.ny
         
-        # Store boundary condition.
+        # Check for periodic boundary condition.
         self.periodicX = periodicX
         self.periodicY = False       # Remove this option for now.
         
@@ -122,6 +122,13 @@ class ArakawaCGrid:
         """
         
         return self.backwardGradientFieldY(self.hField)
+    
+    def vorticityField(self):
+        """ 
+        """
+
+        return (self.forwardGradientFieldX(self.vField) - 
+                self.forwardGradientFieldY(self.uField))
     
     def vOnUField(self):
         """ 

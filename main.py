@@ -7,7 +7,8 @@ Student ID: 31827379
 import numpy as np
 import matplotlib.pyplot as plt
 
-from solver import Solver, Model
+from solver import Solver
+from model import Model
 from equations import UVelocity, VVelocity, Eta
 from grids import ArakawaCGrid
 from timeSchemes import forwardBackwardSchemeCoupled, RK4SchemeCoupled
@@ -30,16 +31,16 @@ def calculateTimestepCFL(c, d):
 if __name__ == "__main__":
         
     # Grid creation.
-    xbounds = [0, 1e6]
+    xbounds = [0, 2e7]
     xL = xbounds[1]
-    dx = 5e3
+    dx = 100e3
     nx = int((xbounds[1] - xbounds[0])/dx)
     # nx = 254
     grid = ArakawaCGrid(xbounds, nx, periodicX=True)
 
     # Time stepping information.
-    # dt = calculateTimestepCFL(100, dx)
-    dt = 50
+    dt = 0.95*calculateTimestepCFL(100, dx)
+    # dt = 1000
     # dt = 100
     endtime = 10*24*60**2 
     nt = int(np.ceil(endtime/dt))
@@ -83,27 +84,17 @@ if __name__ == "__main__":
     plt.grid()
     plt.legend()
     plt.show()
-    
-    #%% Turn rotation on/off.
-    solver.model.grid.resetFields()
-    solver.model.activateBetaPlane(False)
-    solver.run()
-    plotContourSubplot(solver.model.grid)
-    
-    #%% Turn wind on/off.
-    solver.model.grid.resetFields()
-    solver.model.activateWindStress(True)
-    solver.run()
-    plotContourSubplot(solver.model.grid)
-        
+            
     #%% Gravity wave with blob initial condition.
     solver.model.grid.resetFields()
     
-    solver.model.activateBetaPlane(False)
     solver.model.activateWindStress(False)
+    solver.model.setH(1e3)
+    solver.model.setf0(0)
+    solver.model.setBeta(0)
     
-    solver.model.setBlobInitialCondition(xL*np.array([0.01, 0.55]), 
-                                          ((5*dx)**2*np.array([2, 2])**2), 0.01*dx)
+    solver.model.setBlobInitialCondition(xL*np.array([0.5, 0.55]), 
+                                          ((1*dx)**2*np.array([2, 2])**2), 0.01*dx)
     plotContourSubplot(solver.model.grid)
     
     # solver.store = True
@@ -114,7 +105,6 @@ if __name__ == "__main__":
     solver.model.grid.resetFields()
     solver.store = True
     
-    solver.model.activateBetaPlane(True)
     solver.model.activateWindStress(False)
     
     # Create new grid for equatorial beta plate.
@@ -122,40 +112,44 @@ if __name__ == "__main__":
 
     # Equatorial beta plane.
     solver.model.setf0(0)
-    solver.model.setBeta(2.5e-11)   # Increase the effects of rotation.
+    solver.model.setBeta(5e-8)   # Increase the effects of rotation.
     solver.model.grid = grid
     
     solver.model.setBlobInitialCondition(np.array([0.2*xL, 0]), 
-                                          ((4*dx)**2*np.array([2, 2])**2), 100)
+                                          ((5*dx)**2*np.array([2, 2])**2), 100)
     
     solver.run()
     plotContourSubplot(solver.model.grid)
     
     #%% Rossby wave attempt (using easterly jet initial condition).
     
-    solver.model.grid.resetFields()
-        
-    # # Setup equatorial beta plane.
-    solver.model.activateBetaPlane(True)
-    # solver.model.activateWindStress(False)
-    grid = ArakawaCGrid(xbounds, nx, [-0.5*xL, 0.5*xL], periodicX=True)
-    solver.model.setf0(0)
-    solver.model.setBeta(1e-11)   # Increase the effects of rotation.
-    solver.model.grid = grid
+    f0 = 1e-4
+    g = 9.8
     
-    # Easterly jet initial condition.
+    solver.model.grid.resetFields()
+    solver.store = True
+
+    solver.model.activateWindStress(False)
+    grid = ArakawaCGrid(xbounds, nx, [-0.5*xL, 0.5*xL], periodicX=True)
+    solver.model.setf0(f0)
+    solver.model.setBeta(1.6e-11)   # Increase the effects of rotation.
+    solver.model.grid = grid
+            
+    # # Easterly jet initial condition.
     Y = solver.model.grid.Ymid
-    solver.model.grid.hField = (10000 - 50.*np.cos((Y-np.mean(Y))*4.*np.pi/np.max(Y)))
-        
-    # # # Zonal jet initial condition.
-    # # solver.model.grid.hField = (10000 - np.tanh(20.*((Y-np.mean(Y))/Y.max()))*400)[:-1, :-1]
-    # # # solver.model.setBeta(5e-10)
+    # solver.model.grid.hField = (1000 - 0.5*np.cos((Y-np.mean(Y))*2.*np.pi/np.max(Y)))
+            
+    # Sharp shear initial condition from Robin Hogan.
+    mean_wind_speed = 50.; # m/s
+    height = (mean_wind_speed*f0/g)*np.abs(Y-np.mean(Y));
+    solver.model.grid.hField = 1000.+height-np.mean(height[:]);
     
     # Update viewer.
     solver.model.grid.fields["eta"] = solver.model.grid.hField
-    # solver.store = True
-    # solver.nt = 500
-
+    
+    # Add random noise?
+    solver.model.addRandomNoise()
+    
     solver.run()
     
     plotContourSubplot(solver.model.grid)
