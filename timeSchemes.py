@@ -4,6 +4,8 @@ MTMW14 Assignment 2
 Student ID: 31827379
 """
 
+import numpy as np
+
 def forwardBackwardSchemeCoupled(funcs, grid, dt, nt):
     """ 
     
@@ -28,6 +30,41 @@ def forwardBackwardSchemeCoupled(funcs, grid, dt, nt):
 def RK4SchemeCoupled(funcs, grid, dt, nt):
     """ 
     sad
+    """
+    
+    # Initialise k as dict (please think of something better).
+    kfunc = {}
+    kfunc["eta"] = np.zeros(shape=(4, *grid.fields["eta"].shape))
+    kfunc["uVelocity"] = np.zeros(shape=(4, *grid.fields["uVelocity"].shape))
+    kfunc["vVelocity"] = np.zeros(shape=(4, *grid.fields["vVelocity"].shape))
+    
+    gridP = grid
+    for i in range(4):
+        for func in funcs:
+                        
+            # Find k_i for the current function.
+            kfunc[func.name][i] = func(gridP)
+        
+        if i==3: break # break out early to avoid mess below.
+        
+        # Make a copy to reset fields to previous timestep.
+        gridP = grid.copy()  #oof
+        
+        # Update the intermediate prediction grid (another loop!).
+        for func in funcs:
+                        
+            # Update the prediction grid for the next prediction.
+            gridP.fields[func.name] += dt*kfunc[func.name][i]*(0.5 if i < 2 else 1)
+            
+    # Runge-kutte step (loop number 3!).
+    for func in funcs:
+        
+        k = kfunc[func.name]
+        grid.fields[func.name] += dt*(k[0] + 2*k[1] + 2*k[2] + k[3])/6
+        
+def RK4SchemeCoupled_OLD(funcs, grid, dt, nt):
+    """ 
+    might be better.
     """
     
     # hmm
