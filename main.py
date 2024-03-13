@@ -31,7 +31,7 @@ def calculateTimestepCFL(c, d):
 if __name__ == "__main__":
         
     # Grid creation.
-    xbounds = [0, 2e7]
+    xbounds = [0, 2.54e7]
     xL = xbounds[1]
     dx = 100e3
     nx = int((xbounds[1] - xbounds[0])/dx)
@@ -42,7 +42,7 @@ if __name__ == "__main__":
     dt = 0.95*calculateTimestepCFL(100, dx)
     # dt = 1000
     # dt = 100
-    endtime = 10*24*60**2 
+    endtime = 40*24*60**2 
     nt = int(np.ceil(endtime/dt))
     
     # Set up the model and solver.
@@ -123,32 +123,20 @@ if __name__ == "__main__":
     
     #%% Rossby wave attempt (using easterly jet initial condition).
     
+    # THis has become baroclinic instability attempt which also doesn't wok
+    
     f0 = 1e-4
+    # f0 = 0.
+    beta = 1.6e-11
+    # beta = 2e-11
     g = 9.8
+    
+    solver.model.activateWindStress(False)
     
     solver.model.grid.resetFields()
     solver.store = True
-
-    solver.model.activateWindStress(False)
-    grid = ArakawaCGrid(xbounds, nx, [-0.5*xL, 0.5*xL], periodicX=True)
-    solver.model.setf0(f0)
-    solver.model.setBeta(1.6e-11)   # Increase the effects of rotation.
-    solver.model.grid = grid
-            
-    # # Easterly jet initial condition.
-    Y = solver.model.grid.Ymid
-    # solver.model.grid.hField = (1000 - 0.5*np.cos((Y-np.mean(Y))*2.*np.pi/np.max(Y)))
-            
-    # Sharp shear initial condition from Robin Hogan.
-    mean_wind_speed = 50.; # m/s
-    height = (mean_wind_speed*f0/g)*np.abs(Y-np.mean(Y));
-    solver.model.grid.hField = 1000.+height-np.mean(height[:]);
     
-    # Update viewer.
-    solver.model.grid.fields["eta"] = solver.model.grid.hField
-    
-    # Add random noise?
-    solver.model.addRandomNoise()
+    solver.model.setSharpShearInitialCondition()
     
     solver.run()
     

@@ -44,12 +44,12 @@ class Solver:
                 eqn["data"][t+1] = eqn["func"](self.model)
                 
             # Store state if necessary (Could just use grid.fields instead).
-            if self.store:
+            if self.store and t % 20 == 0:
                 self.history.append([self.model.grid.uField.copy(),
                                      self.model.grid.vField.copy(),
                                      self.model.grid.hField.copy()])
             
-            plotContourSubplot(self.model.grid)
+                plotContourSubplot(self.model.grid)
             
     def runEnsemble(self, numEnsembles, perturbationRange):
         """ 
