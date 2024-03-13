@@ -27,6 +27,7 @@ def forwardBackwardSchemeCoupled(funcs, grid, dt, nt):
 # OLD - From assignment 1
 def RK4SchemeCoupled(funcs, grid, dt, nt):
     """ 
+    sad
     """
     
     # hmm
@@ -68,47 +69,39 @@ def RK4SchemeCoupled(funcs, grid, dt, nt):
     m4 = funcs[2](gridP)
     
     ## Runge-Kutte step.
-    gridP.fields["eta"] += dt*(k1 + 2*k2 + 2*k3 + k4)/6
+    grid.fields["eta"] += dt*(k1 + 2*k2 + 2*k3 + k4)/6
     grid.fields["uVelocity"] += dt*(l1 + 2*l2 + 2*l3 + l4)/6
     grid.fields["vVelocity"] += dt*(m1 + 2*m2 + 2*m3 + m4)/6
 
 
-# def RK4SchemeCoupled(funcs, dt, nt, *phi0s):
-#     """ 
-#     Runge-Kutta 4 scheme for coupled equations.
+def RK4SchemeCoupled(funcs, grid, dt, nt):
+    """ 
+    """
     
-#     Inputs
-#     -------
+    # Initialise array of k values (1 - 4 for RK4).
+    k = np.zeros(shape=(4, len(funcs)))
     
-#     Returns
-#     -------
-#     """
-    
-#     # Initialise array of k values (1 - 4 for RK4).
-#     k = np.zeros(shape=(4, len(funcs)))
-    
-#     phiPs = phi0s
-#     nti = nt - 1
-#     for i in range(4):
-#         for j, func in enumerate(funcs):
+    phiPs = phi0s
+    nti = nt - 1
+    for i in range(4):
+        for j, func in enumerate(funcs):
             
-#             # Update k value.
-#             k[i, j] = func(nti*dt, dt, *phiPs)
+            # Update k value.
+            k[i, j] = func(nti*dt, dt, *phiPs)
             
-#         # Update RK prediction value for RK4.
-#         phiPs = phi0s + dt * k[i, :] * (0.5 if i < 2 else 1)
-#         nti = nt - 0.5 if i < 2 else 0
+        # Update RK prediction value for RK4.
+        phiPs = phi0s + dt * k[i, :] * (0.5 if i < 2 else 1)
+        nti = nt - 0.5 if i < 2 else 0
         
-#     # Calculate new timestep.
-#     phi = np.zeros(shape=len(funcs))
-#     for i, (func, phi0) in enumerate(zip(funcs, phi0s)):
+    # Calculate new timestep.
+    phi = np.zeros(shape=len(funcs))
+    for i, (func, phi0) in enumerate(zip(funcs, phi0s)):
         
-#         # Runge-Kutta step.
-#         phi[i] = phi0 + dt * (k[0, i] + 2*k[1, i] + 2*k[2, i] + k[3, i]) / 6
+        # Runge-Kutta step.
+        phi[i] = phi0 + dt * (k[0, i] + 2*k[1, i] + 2*k[2, i] + k[3, i]) / 6
     
-#     return phi
 
-# TODO: RK4
+# TODO: Finish RK4
 # TODO: Finish semi lagrangian
 # TODO: Lax-wendroff?
 # TODO: Semi implicit semi lagrangian?

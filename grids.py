@@ -49,8 +49,10 @@ class ArakawaCGrid:
         grid.vField = self.vField.copy()
         grid.hField = self.hField.copy()
         
-        # Copy views.
-        grid.fields = self.fields.copy()
+        # Store by ref in dictionary for iterating over fields.
+        grid.fields = {"uVelocity" : grid.uField if grid.periodicX else grid.uField[:, 1:-1],
+                       "vVelocity" : grid.vField if grid.periodicY else grid.vField[1:-1, :],
+                       "eta"       : grid.hField}
         
         return grid
             
@@ -91,20 +93,12 @@ class ArakawaCGrid:
         self.uField = np.zeros(shape=(self.ny, numX))
         self.vField = np.zeros(shape=(numY, self.nx))
         self.hField = np.zeros(shape=(self.nx, self.ny))
-        
-        # TODO: Update the views below for periodic boundaries.
-        
+                
         # Store by ref in dictionary for iterating over fields.
         self.fields = {"uVelocity" : self.uField if self.periodicX else self.uField[:, 1:-1],
                        "vVelocity" : self.vField if self.periodicY else self.vField[1:-1, :],
                        "eta"       : self.hField}
-    
-    def updateField(key, field):
-        """ 
-        """
         
-        pass
-    
     def dudxField(self):
         """ 
         """

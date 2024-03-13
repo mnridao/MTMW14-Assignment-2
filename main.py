@@ -30,15 +30,16 @@ def calculateTimestepCFL(c, d):
 if __name__ == "__main__":
         
     # Grid creation.
-    xbounds = [0, 2.5e7]
+    xbounds = [0, 1e6]
     xL = xbounds[1]
-    dx = 50e3
+    dx = 5e3
     nx = int((xbounds[1] - xbounds[0])/dx)
     # nx = 254
-    grid = ArakawaCGrid(xbounds, nx, periodicX=False)
+    grid = ArakawaCGrid(xbounds, nx, periodicX=True)
 
     # Time stepping information.
-    dt = 0.9*calculateTimestepCFL(100, dx)
+    # dt = calculateTimestepCFL(100, dx)
+    dt = 50
     # dt = 100
     endtime = 10*24*60**2 
     nt = int(np.ceil(endtime/dt))
@@ -50,13 +51,6 @@ if __name__ == "__main__":
     
     # Add energy calculator to solver.
     # solver.addCustomEquations("energy", calculateEnergy)
-    
-    #%% Periodic grid test
-    
-    grid2 = ArakawaCGrid(xbounds, nx, periodicX=True)
-    
-    u2 = grid2.uOnVField()
-    v2 = grid2.vOnUField()
         
     #%% Task D (get plots working here)
     solver.run()
@@ -109,12 +103,12 @@ if __name__ == "__main__":
     solver.model.activateWindStress(False)
     
     solver.model.setBlobInitialCondition(xL*np.array([0.01, 0.55]), 
-                                          (0.15*dx**2*np.array([2, 2])**2), 0.01*dx)
+                                          ((5*dx)**2*np.array([2, 2])**2), 0.01*dx)
     plotContourSubplot(solver.model.grid)
     
-    solver.store = True
+    # solver.store = True
     solver.run()
-    # plotContourSubplot(solver.model.grid)
+    plotContourSubplot(solver.model.grid)
     
     #%% Kelvin wave attempt (increase beta?).
     solver.model.grid.resetFields()
