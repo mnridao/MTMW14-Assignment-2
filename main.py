@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 from solver import Solver, Model
 from equations import UVelocity, VVelocity, Eta
 from grids import ArakawaCGrid
-from timeSchemes import forwardBackwardSchemeCoupled
+from timeSchemes import forwardBackwardSchemeCoupled, RK4SchemeCoupled
 from plotters import plotContourSubplot
 
 def calculateEnergy(model):
@@ -32,10 +32,10 @@ if __name__ == "__main__":
     # Grid creation.
     xbounds = [0, 2.5e7]
     xL = xbounds[1]
-    dx = 100e3
-    # nx = int((xbounds[1] - xbounds[0])/dx)
-    nx = 254
-    grid = ArakawaCGrid(xbounds, nx, periodicX=True)
+    dx = 50e3
+    nx = int((xbounds[1] - xbounds[0])/dx)
+    # nx = 254
+    grid = ArakawaCGrid(xbounds, nx, periodicX=False)
 
     # Time stepping information.
     dt = 0.9*calculateTimestepCFL(100, dx)
@@ -44,7 +44,7 @@ if __name__ == "__main__":
     nt = int(np.ceil(endtime/dt))
     
     # Set up the model and solver.
-    scheme = forwardBackwardSchemeCoupled
+    scheme = RK4SchemeCoupled
     model = Model([Eta(), UVelocity(), VVelocity()], grid)
     solver = Solver(model, scheme, dt, nt)
     

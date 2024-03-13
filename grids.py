@@ -35,7 +35,25 @@ class ArakawaCGrid:
                 
         # Initialise the default state variables.
         self.resetFields()
+    
+    def copy(self):
+        """ 
+        """
         
+        # Create grid object.
+        grid = ArakawaCGrid(self.xbounds, self.nx, self.ybounds, self.ny, 
+                            self.periodicX)
+        
+        # Copy fields.
+        grid.uField = self.uField.copy()
+        grid.vField = self.vField.copy()
+        grid.hField = self.hField.copy()
+        
+        # Copy views.
+        grid.fields = self.fields.copy()
+        
+        return grid
+            
     def createGrid(self):
         """ 
         """
