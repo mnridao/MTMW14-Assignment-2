@@ -31,18 +31,18 @@ def calculateTimestepCFL(c, d):
 if __name__ == "__main__":
         
     # Grid creation.
-    xbounds = [0, 2.54e7]
+    xbounds = [0, 1e6]
     xL = xbounds[1]
-    dx = 100e3
+    dx = 25e3
     nx = int((xbounds[1] - xbounds[0])/dx)
     # nx = 254
-    grid = ArakawaCGrid(xbounds, nx, periodicX=True)
+    grid = ArakawaCGrid(xbounds, nx, periodicX=False)
 
     # Time stepping information.
-    dt = 0.95*calculateTimestepCFL(100, dx)
+    dt = 0.99*calculateTimestepCFL(100, dx)
     # dt = 1000
     # dt = 100
-    endtime = 40*24*60**2 
+    endtime = 30*24*60**2 
     nt = int(np.ceil(endtime/dt))
     
     # Set up the model and solver.
@@ -51,7 +51,7 @@ if __name__ == "__main__":
     solver = Solver(model, scheme, dt, nt)
     
     # Add energy calculator to solver.
-    # solver.addCustomEquations("energy", calculateEnergy)
+    solver.addCustomEquations("energy", calculateEnergy)
         
     #%% Task D (get plots working here)
     solver.run()

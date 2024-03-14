@@ -109,8 +109,8 @@ class UVelocity(BaseEqnSWE):
         """
         
         # Coriolis parameter (at half grid points - assumes c grid).
-        # f = (self.params.f0 + self.params.beta*Y)[..., :u.shape[1]]
-        f = (self.params.f0 + self.params.beta*(Y - Y.mean()))[..., :u.shape[1]]        
+        f = (self.params.f0 + self.params.beta*Y)[..., :u.shape[1]]
+        # f = (self.params.f0 + self.params.beta*(Y - Y.mean()))[..., :u.shape[1]]        
         
         # Wind forcing in x-direction.
         tauX = self.params.tauX(Y, L)[..., :u.shape[1]]
@@ -146,8 +146,8 @@ class VVelocity(BaseEqnSWE):
         """
         
         # Coriolis parameter.
-        # f = self.params.f0 + self.params.beta*Y
-        f = self.params.f0 + self.params.beta*(Y - Y.mean())
+        f = self.params.f0 + self.params.beta*Y
+        # f = self.params.f0 + self.params.beta*(Y - Y.mean())
         
         # Wind forcing in y-direction.        
         tauY = self.params.tauY(Y)

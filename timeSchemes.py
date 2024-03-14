@@ -26,7 +26,6 @@ def forwardBackwardSchemeCoupled(funcs, grid, dt, nt):
     
     return
 
-# OLD - From assignment 1
 def RK4SchemeCoupled(funcs, grid, dt, nt):
     """ 
     sad
@@ -34,10 +33,9 @@ def RK4SchemeCoupled(funcs, grid, dt, nt):
     
     # Initialise k as dict (please think of something better).
     kfunc = {}
-    kfunc["eta"] = np.zeros(shape=(4, *grid.fields["eta"].shape))
-    kfunc["uVelocity"] = np.zeros(shape=(4, *grid.fields["uVelocity"].shape))
-    kfunc["vVelocity"] = np.zeros(shape=(4, *grid.fields["vVelocity"].shape))
-    
+    for func in funcs:
+        kfunc[func.name] = np.zeros(shape=(4, *grid.fields[func.name].shape))
+            
     gridP = grid
     for i in range(4):
         for func in funcs:
@@ -56,7 +54,7 @@ def RK4SchemeCoupled(funcs, grid, dt, nt):
             # Update the prediction grid for the next prediction.
             gridP.fields[func.name] += dt*kfunc[func.name][i]*(0.5 if i < 2 else 1)
             
-    # Runge-kutte step (loop number 3!).
+    # Runge-kutte step (loop number 4!).
     for func in funcs:
         
         k = kfunc[func.name]
@@ -109,36 +107,38 @@ def RK4SchemeCoupled_OLD(funcs, grid, dt, nt):
     grid.fields["eta"] += dt*(k1 + 2*k2 + 2*k3 + k4)/6
     grid.fields["uVelocity"] += dt*(l1 + 2*l2 + 2*l3 + l4)/6
     grid.fields["vVelocity"] += dt*(m1 + 2*m2 + 2*m3 + m4)/6
-
-
-# def RK4SchemeCoupled(funcs, grid, dt, nt):
-#     """ 
-#     """
     
-#     # Initialise array of k values (1 - 4 for RK4).
-#     k = np.zeros(shape=(4, len(funcs)))
+
+class SemiLagrangianSchemeCoupled:
+    """ 
+    """
     
-#     phiPs = phi0s
-#     nti = nt - 1
-#     for i in range(4):
-#         for j, func in enumerate(funcs):
-            
-#             # Update k value.
-#             k[i, j] = func(nti*dt, dt, *phiPs)
-            
-#         # Update RK prediction value for RK4.
-#         phiPs = phi0s + dt * k[i, :] * (0.5 if i < 2 else 1)
-#         nti = nt - 0.5 if i < 2 else 0
+    def __init__(self):
+        """ 
+        """
         
-#     # Calculate new timestep.
-#     phi = np.zeros(shape=len(funcs))
-#     for i, (func, phi0) in enumerate(zip(funcs, phi0s)):
+        # Variable interpolaters.
+        self.interpU   = None
+        self.interpV   = None
+        self.interpEta = None
         
-#         # Runge-Kutta step.
-#         phi[i] = phi0 + dt * (k[0, i] + 2*k[1, i] + 2*k[2, i] + k[3, i]) / 6
+        # Gradient interpolaters.
+        self.interpDetadx = None
+        self.interpDetady = None
+        self.interpDudx   = None
+        self.interpDvdy   = None
+        
+    def __call__(self, funcs, grid, dt, nt):
+        """ 
+        """
+        
+        pass
+    
+    def variableInterpolatersInit(self, grid):
+        """ 
+        """
     
 
-# TODO: Finish RK4
 # TODO: Finish semi lagrangian
 # TODO: Lax-wendroff?
 # TODO: Semi implicit semi lagrangian?
