@@ -11,7 +11,7 @@ from solver import Solver
 from model import Model
 from equations import UVelocity, VVelocity, Eta
 from grids import ArakawaCGrid
-from timeSchemes import forwardBackwardSchemeCoupled, RK4SchemeCoupled
+from timeSchemes import forwardBackwardSchemeCoupled, RK4SchemeCoupled, SemiLagrangianSchemeCoupled
 from plotters import plotContourSubplot
 
 def calculateEnergy(model):
@@ -20,7 +20,7 @@ def calculateEnergy(model):
     params = model.eqns[0].params
     return (np.sum(0.5*params.rho*(model.grid.uField[:, :-1]**2 + 
                                    model.grid.vField[:-1, :]**2 + 
-                                   params.g*model.grid.hField**2)) * 
+                                   params.g*model.grid.hField**2))* 
             model.grid.dx**2)
 
 def calculateTimestepCFL(c, d):
@@ -47,6 +47,7 @@ if __name__ == "__main__":
     
     # Set up the model and solver.
     scheme = RK4SchemeCoupled
+    # scheme = SemiLagrangianSchemeCoupled()
     model = Model([Eta(), UVelocity(), VVelocity()], grid)
     solver = Solver(model, scheme, dt, nt)
     

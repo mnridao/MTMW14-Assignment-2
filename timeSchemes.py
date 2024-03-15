@@ -5,6 +5,7 @@ Student ID: 31827379
 """
 
 import numpy as np
+from scipy.interpolate import RegularGridInterpolator
 
 def forwardBackwardSchemeCoupled(funcs, grid, dt, nt):
     """ 
@@ -59,7 +60,182 @@ def RK4SchemeCoupled(funcs, grid, dt, nt):
         
         k = kfunc[func.name]
         grid.fields[func.name] += dt*(k[0] + 2*k[1] + 2*k[2] + k[3])/6
+            
+class SemiLagrangianSchemeCoupled:
+    """ 
+    """
+    
+    def __init__(self, interpMethod="linear"):
+        """ 
+        """
+        self.interpMethod = interpMethod
+                
+        # Store previous time step wind (think of better way?).
+        self.uFieldOld = None 
+        self.vFieldOld = None
         
+    def __call__(self, funcs, grid, dt, nt):
+        """ 
+        """            
+        # Keep a copy of the original grid (won't be updated).
+        gridOld = grid.copy()
+                
+        # Update the thing.
+        self.updateField(grid, gridOld, funcs[0], dt)
+        
+        # Iterate over velocity fields.
+        for func in reversed(funcs[1:]) if nt%2 != 0 else funcs[1:]:
+            
+            # Find departure point.
+            self.updateField(grid, gridOld, func, dt)
+            
+            
+    def updateField(self, grid, gridOld, func, dt):
+        """ 
+        """
+        
+        # Calculate departure point.
+        Xdp, Ydp = self.calculateDeparturePoint(gridOld, dt, func.name)
+        
+        # Calculate new and departure point forcings.
+        if func.name == "eta":
+            
+            fieldDP = self.interpolate(Xdp, Ydp, grid.Xmid[0, :], grid.Ymid[:, 0], 
+                                       grid.fields[func.name])
+                        
+            forcingsNew, forcingsDP = self.calculateEtaForcings(Xdp, Ydp, func, grid)
+            
+        elif func.name == "uVelocity":
+            
+            fieldDP = self.interpolate(Xdp, Ydp, grid.X[0, 1:-1], grid.Ymid[:, 0],
+                                       grid.fields[func.name])
+                        
+            forcingsNew, forcingsDP = self.calculateUForcings(Xdp, Ydp, fieldDP, 
+                                                              func, grid)
+
+        elif func.name == "vVelocity":
+            
+            fieldDP = self.interpolate(Xdp, Ydp, grid.Xmid[0, :], grid.Y[1:-1, 0], 
+                                       grid.fields[func.name])
+                        
+            forcingsNew, forcingsDP = self.calculateVForcings(Xdp, Ydp, fieldDP, 
+                                                              func, grid)
+        
+        # Update the current field ([:] required so that it updates).
+        grid.fields[func.name][:] = (fieldDP + 0.5*dt*(forcingsNew + forcingsDP))
+        
+    def calculateDeparturePoint(self, gridOld, dt, funcName):
+        """ 
+        """
+        
+        # Find the appropriate grid and fields for the current func.
+        if funcName == "eta":
+            
+            # Eta stored at half cell points.
+            U = 0.5*(gridOld.uField[:, :-1] + gridOld.uField[:, 1:])
+            V = 0.5*(gridOld.vField[:-1, :] + gridOld.vField[1:, :])
+            
+            X = gridOld.Xmid 
+            Y = gridOld.Ymid
+            
+        elif funcName == "uVelocity":
+            
+            # u-velocity stored at half cells in y and full cells in x.
+            U = gridOld.uField[:, 1:-1]
+            V = gridOld.vOnUField()
+            
+            X = gridOld.X[:-1, 1:-1]
+            Y = gridOld.Ymid[:, :-1]
+            
+        elif funcName == "vVelocity":
+            
+            # v-velocity stored at half cells in x and full cells in y.
+            U = gridOld.uOnVField()
+            V = gridOld.vField[1:-1, :]
+            
+            X = gridOld.Xmid[:-1, :]
+            Y = gridOld.Y[1:-1, :-1]
+        
+        # Intermediate departure point.
+        Xstar = X - 0.5*dt*U
+        Ystar = Y - 0.5*dt*V
+        
+        # Find velocities at intermediate departure point.
+        Ustar = self.interpolate(Xstar, Ystar, gridOld.X[0, 1:-1], gridOld.Ymid[:, 0], 
+                                 gridOld.uField[:, 1:-1])
+        Vstar = self.interpolate(Xstar, Ystar, gridOld.Xmid[0, :], gridOld.Y[1:-1, 0], 
+                                 gridOld.vField[1:-1, :])
+        
+        # Full departure point.
+        Xdp = X - dt*Ustar 
+        Ydp = Y - dt*Vstar
+        
+        # TODO: add the next step? would need to store another velocity.
+        if self.uFieldOld and self.vFieldOld:
+            pass
+        
+        return Xdp, Ydp
+    
+    def calculateEtaForcings(self, Xdp, Ydp, func, grid):
+        """ 
+        """
+        
+        # Forcing arguments for equation.
+        dudxDP = self.interpolate(Xdp, Ydp, grid.Xmid[0, :], grid.Ymid[:, 0], 
+                                  grid.dudxField())
+        dvdyDP = self.interpolate(Xdp, Ydp, grid.Xmid[0, :], grid.Ymid[:, 0],
+                                  grid.dvdyField())
+        
+        forcingsNew = func(grid)
+        forcingsDP  = func.forcings(dudxDP, dvdyDP)
+        
+        return forcingsNew, forcingsDP
+        
+    def calculateUForcings(self, Xdp, Ydp, fieldDP, func, grid):
+        """ 
+        """
+        
+        # Forcing arguments for equation.
+        detadxDP = self.interpolate(Xdp, Ydp, grid.X[0, 1:-1], grid.Ymid[:, 0],
+                                    grid.detadxField())
+        vFieldDP = self.interpolate(Xdp, Ydp, grid.Xmid[0, :], grid.Y[1:-1, 0],
+                                    grid.fields["vVelocity"])
+
+        forcingsNew = func(grid)
+        forcingsDP  = func.forcings(fieldDP, vFieldDP, detadxDP, grid.Ymid, 
+                                    grid.xbounds[1]) 
+        
+        return forcingsNew, forcingsDP
+        
+    def calculateVForcings(self, Xdp, Ydp, fieldDP, func, grid):
+        """ 
+        """
+        
+        # Forcing arguments for equations.
+        detadyDP = self.interpolate(Xdp, Ydp, grid.Xmid[0, :], grid.Y[1:-1, 0], 
+                                    grid.detadyField())
+        uFieldDP = self.interpolate(Xdp, Ydp, grid.X[0, 1:-1], grid.Ymid[:, 0], 
+                                    grid.fields["uVelocity"])
+        
+        forcingsNew = func(grid)
+        forcingsDP  = func.forcings(uFieldDP, fieldDP, detadyDP, grid.Y[1:-1, :-1])
+        
+        return forcingsNew, forcingsDP
+    
+    def interpolate(self, Xdp, Ydp, Xgrid, Ygrid, field):
+        """ 
+        Worth considering?
+        """
+        
+        interp = RegularGridInterpolator((Ygrid, Xgrid), field, bounds_error=False, 
+                                         fill_value=None, 
+                                         method=self.interpMethod)
+        
+        return interp((Ydp, Xdp))
+    
+# TODO: Finish semi lagrangian
+# TODO: Semi implicit semi lagrangian?
+
 def RK4SchemeCoupled_OLD(funcs, grid, dt, nt):
     """ 
     might be better.
@@ -107,198 +283,3 @@ def RK4SchemeCoupled_OLD(funcs, grid, dt, nt):
     grid.fields["eta"] += dt*(k1 + 2*k2 + 2*k3 + k4)/6
     grid.fields["uVelocity"] += dt*(l1 + 2*l2 + 2*l3 + l4)/6
     grid.fields["vVelocity"] += dt*(m1 + 2*m2 + 2*m3 + m4)/6
-    
-
-class SemiLagrangianSchemeCoupled:
-    """ 
-    """
-    
-    def __init__(self):
-        """ 
-        """
-        
-        # Variable interpolaters.
-        self.interpU   = None
-        self.interpV   = None
-        self.interpEta = None
-        
-        # Gradient interpolaters.
-        self.interpDetadx = None
-        self.interpDetady = None
-        self.interpDudx   = None
-        self.interpDvdy   = None
-        
-    def __call__(self, funcs, grid, dt, nt):
-        """ 
-        """
-        
-        pass
-    
-    def variableInterpolatersInit(self, grid):
-        """ 
-        """
-    
-
-# TODO: Finish semi lagrangian
-# TODO: Lax-wendroff?
-# TODO: Semi implicit semi lagrangian?
-
-if __name__ == "__main__":
-
-    import numpy as np
-    
-    from grids import ArakawaCGrid
-    from equations import Parameters
-    
-    from solver import Solver, Model
-    from equations import UVelocity, VVelocity, Eta
-    
-    from plotters import plotContourSubplot
-    
-    # Grid creation.
-    xbounds = [0, 1e6]
-    xL = xbounds[1]
-    dx = 50e3
-    nx = int((xbounds[1] - xbounds[0])/dx)
-    grid = ArakawaCGrid(xbounds, nx)
-    
-    # Time stepping information.
-    dt = 350
-    endtime = 30*24*60**2 
-    nt = int(np.ceil(endtime/dt))
-    
-    dy = dx
-    yL = xL
-    ny = nx
-    
-    scheme = forwardBackwardSchemeCoupled
-    model = Model([Eta(), UVelocity(), VVelocity()], grid)
-    solver = Solver(model, scheme, dt, 1)
-    # solver.run()
-    
-    params = Parameters()
-    
-    interpMethod = "cubic"
-    
-    #%% One time step later.
-    from scipy.interpolate import RegularGridInterpolator
-    
-    X = grid.X
-    Y = grid.Y
-    
-    # Find eta grid (should probably have this in ArakawaCGrid?)
-    midPointsX = np.linspace(0.5*dx, xL-0.5*dx, nx)
-    midPointsY = np.linspace(0.5*dy, yL-0.5*dy, ny)
-    
-    # Mid point grid.
-    Xmid, Ymid = np.meshgrid(midPointsX, midPointsY)
-    
-    # Velocity fields interpolated on eta field.    
-    Umid = 0.5*(grid.uField[:, :-1] + grid.uField[:, 1:])
-    Vmid = 0.5*(grid.vField[:-1, :] + grid.vField[1:, :])
-    
-    #%%
-    
-    ## Current time step interpolators.
-    interpU = RegularGridInterpolator((Ymid[:, 0], X[0, 1:-1]), grid.uField[:, 1:-1],
-                                      bounds_error=False, fill_value=None, method=interpMethod)
-    interpV = RegularGridInterpolator((Y[1:-1, 0], Xmid[0, :]), grid.vField[1:-1, :], 
-                                      bounds_error=False, fill_value=None, method=interpMethod)
-    interpH = RegularGridInterpolator((Ymid[:, 0], Xmid[0, :]), grid.hField, 
-                                      bounds_error=False, fill_value=None, method=interpMethod)
-    #%%
-    
-    for _ in range(705):
-    
-        ## HEIGHT PERTURBATION STEP ##
-            
-        # -- Half time step -- #
-        # grid = ArakawaCGrid(xbounds, nx) # Make a copy of the current time step.
-        
-        # Departure point for height perturbation (half time step).
-        Xstar = Xmid - Umid*dt/2
-        Ystar = Ymid - Vmid*dt/2
-                
-        # Find the velocity at half time step departure point.
-        uStar = interpU((Ystar, Xstar))
-        vStar = interpV((Ystar, Xstar))
-        
-        # -- Full time step -- #
-        Xetadp = Xmid - uStar*dt
-        Yetadp = Ymid - vStar*dt
-        
-        # Interpolate height perturbation field at half a time step.
-        hField2 = interpH((Yetadp, Xetadp))
-        
-        # TODO: Think about how to interpolate forcings onto the departure point.
-        
-        
-        
-        # Find new eta.
-        solver.model.grid.hField = hField2 + dt*model.eqns[0](solver.model.grid)
-        
-        # Update solver grid.
-        solver.model.grid.fields["eta"] = solver.model.grid.hField
-        
-        # plotContourSubplot(solver.model.grid)
-        
-        # Update the eta interpolater.
-        interpH = RegularGridInterpolator((Ymid[:, 0], Xmid[0, :]), solver.model.grid.hField, 
-                                          bounds_error=False, fill_value=None, method=interpMethod)
-        
-        ## U-VELOCITY STEP ## 
-        
-        # -- Half time step -- #
-        Xstar = X[:-1, 1:-1] - grid.uField[:, 1:-1]*dt/2
-        Ystar = Ymid[:, :-1] - grid.vOnUField()*dt/2
-        
-        # Find velocities at the half time step departure points.
-        uStar = interpU((Ystar, Xstar))
-        vStar = interpV((Ystar, Xstar))
-        
-        # Departure point for internal u-velocity (will need to think about bcs).
-        Xudp = X[:-1, 1:-1] - uStar*dt
-        Yudp = Ymid[:, :-1] - vStar*dt
-            
-        # Interpolate u-velocity field.
-        uField2 = interpU((Yudp, Xudp))
-        
-        # Find new u.
-        solver.model.grid.uField[:, 1:-1] = uField2 + dt*model.eqns[1](solver.model.grid) # + departure points
-        
-        # Update the fields viewer.
-        solver.model.grid.fields["uVelocity"] = solver.model.grid.uField[:, 1:-1]
-        
-        # Update the u-velocity interpolator.
-        interpU = RegularGridInterpolator((Ymid[:, 0], X[0, 1:-1]), solver.model.grid.uField[:, 1:-1],
-                                          bounds_error=False, fill_value=None, method=interpMethod)
-        
-        # plotContourSubplot(solver.model.grid)
-        
-        ## V-VELOCITY STEP ##
-        
-        # -- Half time step -- #
-        Xstar = Xmid[:-1, :] - grid.uOnVField()*dt/2
-        Ystar = Y[1:-1, :-1] - grid.vField[1:-1, :]*dt/2
-        
-        # Find velocities at the half time step departure point.
-        uStar = interpU((Ystar, Xstar))
-        vStar = interpV((Ystar, Xstar))
-        
-        # Departure point for internal v-velocity (will need to think about bcs).
-        Xvdp = Xmid[:-1, :] - uStar*dt
-        Yvdp = Y[1:-1, :-1] - vStar*dt
-        
-        vField2 = interpV((Yvdp, Xvdp))
-        
-        # Find new v.
-        solver.model.grid.vField[1:-1, :] = vField2 + dt*model.eqns[2](solver.model.grid) # + departure points
-        
-        # Update the fields viewer.
-        solver.model.grid.fields["vVelocity"] = solver.model.grid.vField[1:-1, :]
-        
-        # Update the interpolator.
-        interpV = RegularGridInterpolator((Y[1:-1, 0], Xmid[0, :]), solver.model.grid.vField[1:-1, :], 
-                                          bounds_error=False, fill_value=None, method=interpMethod)
-        
-    plotContourSubplot(solver.model.grid)

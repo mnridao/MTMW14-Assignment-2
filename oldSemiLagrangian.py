@@ -28,13 +28,13 @@ if __name__ == "__main__":
     # Grid creation.
     xbounds = [0, 1e6]
     xL = xbounds[1]
-    dx = 50e3
+    dx = 25e3
     nx = int((xbounds[1] - xbounds[0])/dx)
     grid = ArakawaCGrid(xbounds, nx)
     
     # Time stepping information.
-    dt = 350
-    endtime = 100*24*60**2 
+    dt = 170
+    endtime = 5*24*60**2 
     nt = int(np.ceil(endtime/dt))
     
     dy = dx
@@ -61,7 +61,7 @@ if __name__ == "__main__":
         
     #%%
     
-    ## Current time step interpolators.
+    # Current time step interpolators.
     interpU = RegularGridInterpolator((Ymid[:, 0], X[0, 1:-1]), grid.uField[:, 1:-1],
                                       bounds_error=False, fill_value=None, method=interpMethod)
     interpV = RegularGridInterpolator((Y[1:-1, 0], Xmid[0, :]), grid.vField[1:-1, :], 
@@ -88,10 +88,13 @@ if __name__ == "__main__":
         # Departure point for height perturbation (half time step).
         Xstar = Xmid - 0.5*dt*Umid
         Ystar = Ymid - 0.5*dt*Vmid
-                
+        
         # Find the velocity at half time step departure point.
+        # if t == 0:   
         uStar = interpU((Ystar, Xstar))
         vStar = interpV((Ystar, Xstar))
+        # else:
+        #     pass
         
         # -- Full time step -- #
         Xetadp = Xmid - dt*uStar
@@ -104,8 +107,11 @@ if __name__ == "__main__":
         Ystar = Ymid[:, :-1] - solver.model.grid.vOnUField()*dt/2
         
         # Find velocities at the half time step departure points.
+        # if t == 0:
         uStar = interpU((Ystar, Xstar))
         vStar = interpV((Ystar, Xstar))
+        # else:
+        #     pass
         
         # Departure point for internal u-velocity (will need to think about bcs).
         Xudp = X[:-1, 1:-1] - uStar*dt
@@ -114,8 +120,11 @@ if __name__ == "__main__":
         ## V VELOCITY ##
         
         # -- Half time step -- #
+        # if t == 0:
         Xstar = Xmid[:-1, :] - solver.model.grid.uOnVField()*dt/2
         Ystar = Y[1:-1, :-1] - solver.model.grid.vField[1:-1, :]*dt/2
+        # else:
+            # pass
         
         # Find velocities at the half time step departure point.
         uStar = interpU((Ystar, Xstar))
@@ -129,7 +138,7 @@ if __name__ == "__main__":
         
         ## HEIGHT PERTURBATION STEP ##
             
-        # # -- Half time step -- #
+        # -- Half time step -- #
         
         # # Update mid point velocities.
         # Umid = 0.5*(solver.model.grid.uField[:, :-1] + solver.model.grid.uField[:, 1:])
@@ -177,7 +186,7 @@ if __name__ == "__main__":
         interpH = RegularGridInterpolator((Ymid[:, 0], Xmid[0, :]), solver.model.grid.hField, 
                                           bounds_error=False, fill_value=None, method=interpMethod)    
         #%%
-        ## U-VELOCITY STEP ## 
+        # ## U-VELOCITY STEP ## 
         
         # # -- Half time step -- #
         # Xstar = X[:-1, 1:-1] - 0.5*dt*solver.model.grid.uField[:, 1:-1]
@@ -208,7 +217,7 @@ if __name__ == "__main__":
         
         solver.model.grid.fields["uVelocity"] += (0.5*dt*
                                                   (model.eqns[1](solver.model.grid) + 
-                                                    model.eqns[1].forcings(uDP, vDP, detadxDP, Yudp, xL)))
+                                                   model.eqns[1].forcings(uDP, vDP, detadxDP, Yudp, xL)))
                                 
         # Update the u-velocity interpolator.
         interpU = RegularGridInterpolator((Ymid[:, 0], X[0, 1:-1]), grid.uField[:, 1:-1],
@@ -217,7 +226,7 @@ if __name__ == "__main__":
         # plotContourSubplot(solver.model.grid)
         
         #%%
-        ## V-VELOCITY STEP ##
+        # V-VELOCITY STEP ##
         
         # # -- Half time step -- #
         # Xstar = Xmid[:-1, :] - solver.model.grid.uOnVField()*dt/2
@@ -246,7 +255,7 @@ if __name__ == "__main__":
         # Find new v.
         solver.model.grid.fields["vVelocity"] += (0.5*dt*
                                                   (model.eqns[2](solver.model.grid) + 
-                                                    model.eqns[2].forcings(u, v, detadyDP, Yvdp)))
+                                                   model.eqns[2].forcings(u, v, detadyDP, Yvdp)))
         
         # solver.model.grid.fields["vVelocity"] += dt*model.eqns[2](solver.model.grid)
         
@@ -254,4 +263,4 @@ if __name__ == "__main__":
         interpV = RegularGridInterpolator((Y[1:-1, 0], Xmid[0, :]), solver.model.grid.vField[1:-1, :], 
                                           bounds_error=False, fill_value=None, method=interpMethod)
         
-        plotContourSubplot(solver.model.grid)
+    plotContourSubplot(solver.model.grid)
