@@ -33,37 +33,43 @@ if __name__ == "__main__":
     # Grid creation.
     xbounds = [0, 1e6]
     xL = xbounds[1]
-    dx = 25e3
+    dx = 10e3
     nx = int((xbounds[1] - xbounds[0])/dx)
     # nx = 254
     grid = ArakawaCGrid(xbounds, nx, periodicX=False)
 
     # Time stepping information.
-    dt = 0.99*calculateTimestepCFL(100, dx)
+    # dt = 0.99*calculateTimestepCFL(100, dx)
+    dt = 69
+    # dt = 100
+    # dt = 180
     # dt = 1000
     # dt = 100
     endtime = 30*24*60**2 
     nt = int(np.ceil(endtime/dt))
+    nt = 334
     
     # Set up the model and solver.
-    scheme = RK4SchemeCoupled
+    # scheme = RK4SchemeCoupled
+    scheme = forwardBackwardSchemeCoupled
     # scheme = SemiLagrangianSchemeCoupled()
     model = Model([Eta(), UVelocity(), VVelocity()], grid)
     solver = Solver(model, scheme, dt, nt)
     
     # Add energy calculator to solver.
-    solver.addCustomEquations("energy", calculateEnergy)
+    # solver.addCustomEquations("energy", calculateEnergy)
         
     #%% Task D (get plots working here)
+    # solver.store = True
     solver.run()
     # energy = solver.getCustomData("energy")
     plotContourSubplot(solver.model.grid)
     
-    # Plot energy.
-    time = np.arange(0, solver.dt*(solver.nt+1), solver.dt)
-    plt.figure(figsize=(10, 10))
+    # # Plot energy.
+    # time = np.arange(0, solver.dt*(solver.nt+1), solver.dt)
+    # plt.figure(figsize=(10, 10))
     # plt.plot(energy)
-    plt.show()
+    # plt.show()
         
     #%% Task E (energy)
     # Half the grid spacing and find new time step.
@@ -85,20 +91,38 @@ if __name__ == "__main__":
     plt.grid()
     plt.legend()
     plt.show()
-            
+    
+    #%% Sea mountain + gravity wave.
+    solver.model.grid.resetFields()
+    
+    solver.model.activateWindStress(False)
+    solver.model.setf0(0)
+    solver.model.setBeta(0)
+    
+    mu = xL*np.array([0.5, 0.55])
+    var = (1*dx)**2*np.array([2, 2])**2
+    solver.model.setMountainBottomTopography(mu, var, 100)
+    solver.model.setBlobInitialCondition(np.array([0, 0]), var, 10)
+    
+    plotContourSubplot(solver.model.grid)
+    
+    solver.store = True
+    solver.run()
+    plotContourSubplot(solver.model.grid)
+    
     #%% Gravity wave with blob initial condition.
     solver.model.grid.resetFields()
     
     solver.model.activateWindStress(False)
-    solver.model.setH(1e3)
+    solver.model.activateDamping(False)
     solver.model.setf0(0)
     solver.model.setBeta(0)
     
     solver.model.setBlobInitialCondition(xL*np.array([0.5, 0.55]), 
-                                          ((1*dx)**2*np.array([2, 2])**2), 0.01*dx)
+                                          ((3*dx)**2*np.array([2, 2])**2), 1*dx)
     plotContourSubplot(solver.model.grid)
     
-    # solver.store = True
+    solver.store = True
     solver.run()
     plotContourSubplot(solver.model.grid)
     
@@ -135,21 +159,75 @@ if __name__ == "__main__":
     solver.model.activateWindStress(False)
     
     solver.model.grid.resetFields()
-    solver.store = True
+
+    # # Create new grid for equatorial beta plate.
+    # # grid = ArakawaCGrid(xbounds, nx, [-0.5*xL, 0.5*xL], periodicX=True)
+
+    # # Equatorial beta plane.
+    # solver.model.setf0(f0)
+    # solver.model.setBeta(beta)   # Increase the effects of rotation.
+    # # solver.model.grid = grid
     
-    solver.model.setSharpShearInitialCondition()
+    # Add a mountain.
+    solver.model.setMountainBottomTopography(xL*np.array([0.5, 0.55]), 
+                                          ((1*dx)**2*np.array([2, 2])**2), 900)
+    
+    # Set up equatorial easterly.
+    Y = solver.model.grid.Ymid
+    # f = (f0 + beta*(Y - Y.mean()))
+    f = f0 + beta*Y
+
+    # solver.model.grid.hField = 1000. - 50.*np.cos((Y-np.mean(Y))*4.*np.pi/np.max(Y));
+    mean_wind_speed = 20.; # m/s
+    # solver.model.grid.hField = 1000.-(mean_wind_speed*f/g)*(Y-np.mean(Y)); 
+    solver.model.grid.hField = 1000.-(mean_wind_speed*f/g)*Y - solver.model.grid.hBot; 
+    
+    # Update the viewer.
+    solver.model.grid.fields["eta"] = solver.model.grid.hField
+    
+    # Setup geostrophic wind.
+    solver.model.setGeostrophicBalanceInitialCondition()
     
     solver.run()
     
     plotContourSubplot(solver.model.grid)
+    
+    #%% Rossby wave attempt no 2.
+    
+    solver.model.grid.resetFields()
+    solver.store = True
+    
+    solver.model.activateWindStress(False)
+    
+    # Create new grid for equatorial beta plate.
+    grid = ArakawaCGrid(xbounds, nx, [-0.5*xL, 0.5*xL], periodicX=True)
+
+    # Equatorial beta plane.
+    solver.model.setf0(1e-5)
+    solver.model.setBeta(1e-11)   # Increase the effects of rotation.
+    solver.model.grid = grid
+    
+    # blob initial condition.
+    solver.model.setBlobInitialCondition(xL*np.array([0.45, 0.55]), 
+                                          ((2*dx)**2*np.array([2, 2])**2), 100)
+    
+    # Set bottom topography.
+    solver.model.setMountainBottomTopography(xL*np.array([0.5, 0.55]), 
+                                          ((2*dx)**2*np.array([2, 2])**2), 100)
+    
+    # Set geostrophic initial conditions.
+    solver.model.setGeostrophicBalanceInitialCondition()
+    solver.run()
+    plotContourSubplot(solver.model.grid)
+    
     #%% Trying out different plots.
     solver.model.grid.resetFields()
     
     solver.store = True
     solver.model.setBlobInitialCondition(xL*np.array([0.5, 0.55]), 
                                           ((5*dx)**2*np.array([2, 2])**2), 100)
-    plotContourSubplot(solver.model.grid)
-    solver.run()
+    # plotContourSubplot(solver.model.grid)
+    # solver.run()
     
     plotContourSubplot(solver.model.grid)
     
@@ -195,8 +273,8 @@ if __name__ == "__main__":
     
     #%% Plot heigh perturbation surface plots.
     
-    minH = min(np.min(state[2]) for state in solver.history[::100])
-    maxH = max(np.max(state[2]) for state in solver.history[::100])
+    minH = min(np.min(state[2]) for state in solver.history)
+    maxH = max(np.max(state[2]) for state in solver.history)
     
     for state in solver.history:
         
@@ -229,13 +307,13 @@ if __name__ == "__main__":
     maxH = max(np.max(state[2]) for state in solver.history)
     
     # Set up the figure and axis
-    fig = plt.figure(figsize=(20, 20))
+    # fig = plt.figure(figsize=(20, 20))
     ax = fig.add_subplot(111, projection='3d')
     
     def update(frame):
         ax.clear()
     
-        state = solver.history[frame]
+        state = states[frame]
     
         # Plot the surface
         surf = ax.plot_surface(solver.model.grid.Xmid,
@@ -254,8 +332,9 @@ if __name__ == "__main__":
         return surf,
     
     # The total number of frames is the length of the solver history
-    total_frames = len(solver.history)
-    
+    states = solver.history
+    total_frames = len(states)
+        
     # Use FuncAnimation to create the animation
     animation = FuncAnimation(fig, update, frames=total_frames
                                , interval=200
@@ -267,7 +346,7 @@ if __name__ == "__main__":
     from matplotlib.animation import PillowWriter
     
     writer = PillowWriter(fps=30)
-    animation.save("kelvinWavePeriodic2.gif", writer=writer)
+    animation.save("gravityWaveFB.gif", writer=writer)
     
     # Close the figure to avoid displaying it twice
     plt.close(fig)

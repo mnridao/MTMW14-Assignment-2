@@ -25,7 +25,6 @@ def forwardBackwardSchemeCoupled(funcs, grid, dt, nt):
         # Forward-euler step for the current velocity field.
         grid.fields[func.name] += dt*func(grid)
     
-    return
 
 def RK4SchemeCoupled(funcs, grid, dt, nt):
     """ 
@@ -60,7 +59,14 @@ def RK4SchemeCoupled(funcs, grid, dt, nt):
         
         k = kfunc[func.name]
         grid.fields[func.name] += dt*(k[0] + 2*k[1] + 2*k[2] + k[3])/6
-            
+
+def semiImplicitSchemeCoupled(self, funcs, grid, dt, nt): 
+    """ 
+    """
+    
+    # Setup matrix equation to solve for current time step.
+    
+
 class SemiLagrangianSchemeCoupled:
     """ 
     """
@@ -79,8 +85,8 @@ class SemiLagrangianSchemeCoupled:
         """            
         # Keep a copy of the original grid (won't be updated).
         gridOld = grid.copy()
-                
-        # Update the thing.
+                        
+        # Update the height perturbation field first.
         self.updateField(grid, gridOld, funcs[0], dt)
         
         # Iterate over velocity fields.
@@ -88,7 +94,10 @@ class SemiLagrangianSchemeCoupled:
             
             # Find departure point.
             self.updateField(grid, gridOld, func, dt)
-            
+        
+        # Store previous time step for next round (used in dp calc).
+        self.uFieldOld = gridOld.fields["uVelocity"]
+        self.vFieldOld = gridOld.fields["vVelocity"]
             
     def updateField(self, grid, gridOld, func, dt):
         """ 
@@ -96,30 +105,30 @@ class SemiLagrangianSchemeCoupled:
         
         # Calculate departure point.
         Xdp, Ydp = self.calculateDeparturePoint(gridOld, dt, func.name)
-        
-        # Calculate new and departure point forcings.
+                
+        # Departure point forcing calculations should be done at gridOld but blows up.
+        # gridDP = gridOld
+        gridDP = grid
         if func.name == "eta":
             
             fieldDP = self.interpolate(Xdp, Ydp, grid.Xmid[0, :], grid.Ymid[:, 0], 
-                                       grid.fields[func.name])
-                        
-            forcingsNew, forcingsDP = self.calculateEtaForcings(Xdp, Ydp, func, grid)
+                                       gridDP.fields[func.name])
+            forcingsDP = self.calculateEtaForcings(Xdp, Ydp, func, gridDP)
             
         elif func.name == "uVelocity":
             
             fieldDP = self.interpolate(Xdp, Ydp, grid.X[0, 1:-1], grid.Ymid[:, 0],
-                                       grid.fields[func.name])
-                        
-            forcingsNew, forcingsDP = self.calculateUForcings(Xdp, Ydp, fieldDP, 
-                                                              func, grid)
+                                       gridDP.fields[func.name])
+            forcingsDP = self.calculateUForcings(Xdp, Ydp, fieldDP, func, gridDP)
 
         elif func.name == "vVelocity":
             
             fieldDP = self.interpolate(Xdp, Ydp, grid.Xmid[0, :], grid.Y[1:-1, 0], 
-                                       grid.fields[func.name])
-                        
-            forcingsNew, forcingsDP = self.calculateVForcings(Xdp, Ydp, fieldDP, 
-                                                              func, grid)
+                                       gridDP.fields[func.name])  
+            forcingsDP = self.calculateVForcings(Xdp, Ydp, fieldDP, func, gridDP)
+        
+        # Calculate forcings at current time step.
+        forcingsNew = func(grid)
         
         # Update the current field ([:] required so that it updates).
         grid.fields[func.name][:] = (fieldDP + 0.5*dt*(forcingsNew + forcingsDP))
@@ -159,21 +168,26 @@ class SemiLagrangianSchemeCoupled:
         # Intermediate departure point.
         Xstar = X - 0.5*dt*U
         Ystar = Y - 0.5*dt*V
-        
+                
         # Find velocities at intermediate departure point.
         Ustar = self.interpolate(Xstar, Ystar, gridOld.X[0, 1:-1], gridOld.Ymid[:, 0], 
                                  gridOld.uField[:, 1:-1])
         Vstar = self.interpolate(Xstar, Ystar, gridOld.Xmid[0, :], gridOld.Y[1:-1, 0], 
                                  gridOld.vField[1:-1, :])
         
-        # Full departure point.
+        if np.any(self.uFieldOld):
+            
+            UstarOld = self.interpolate(Xstar, Ystar, gridOld.X[0, 1:-1], 
+                                        gridOld.Ymid[:, 0], self.uFieldOld)
+            VstarOld = self.interpolate(Xstar, Ystar, gridOld.Xmid[0, :], 
+                                        gridOld.Y[1:-1, 0], self.vFieldOld)
+            
+            Ustar = 1.5*Ustar - 0.5*UstarOld
+            Vstar = 1.5*Vstar - 0.5*VstarOld
+            
         Xdp = X - dt*Ustar 
         Ydp = Y - dt*Vstar
-        
-        # TODO: add the next step? would need to store another velocity.
-        if self.uFieldOld and self.vFieldOld:
-            pass
-        
+                
         return Xdp, Ydp
     
     def calculateEtaForcings(self, Xdp, Ydp, func, grid):
@@ -186,10 +200,7 @@ class SemiLagrangianSchemeCoupled:
         dvdyDP = self.interpolate(Xdp, Ydp, grid.Xmid[0, :], grid.Ymid[:, 0],
                                   grid.dvdyField())
         
-        forcingsNew = func(grid)
-        forcingsDP  = func.forcings(dudxDP, dvdyDP)
-        
-        return forcingsNew, forcingsDP
+        return func.forcings(dudxDP, dvdyDP)
         
     def calculateUForcings(self, Xdp, Ydp, fieldDP, func, grid):
         """ 
@@ -201,12 +212,9 @@ class SemiLagrangianSchemeCoupled:
         vFieldDP = self.interpolate(Xdp, Ydp, grid.Xmid[0, :], grid.Y[1:-1, 0],
                                     grid.fields["vVelocity"])
 
-        forcingsNew = func(grid)
-        forcingsDP  = func.forcings(fieldDP, vFieldDP, detadxDP, grid.Ymid, 
-                                    grid.xbounds[1]) 
-        
-        return forcingsNew, forcingsDP
-        
+
+        return func.forcings(fieldDP, vFieldDP, detadxDP, grid.Ymid, grid.xbounds[1]) 
+                
     def calculateVForcings(self, Xdp, Ydp, fieldDP, func, grid):
         """ 
         """
@@ -217,10 +225,7 @@ class SemiLagrangianSchemeCoupled:
         uFieldDP = self.interpolate(Xdp, Ydp, grid.X[0, 1:-1], grid.Ymid[:, 0], 
                                     grid.fields["uVelocity"])
         
-        forcingsNew = func(grid)
-        forcingsDP  = func.forcings(uFieldDP, fieldDP, detadyDP, grid.Y[1:-1, :-1])
-        
-        return forcingsNew, forcingsDP
+        return func.forcings(uFieldDP, fieldDP, detadyDP, grid.Y[1:-1, :-1])
     
     def interpolate(self, Xdp, Ydp, Xgrid, Ygrid, field):
         """ 
@@ -232,9 +237,19 @@ class SemiLagrangianSchemeCoupled:
                                          method=self.interpMethod)
         
         return interp((Ydp, Xdp))
-    
-# TODO: Finish semi lagrangian
+
+# TODO: Semi implicit
 # TODO: Semi implicit semi lagrangian?
+
+class SemiImplicitSemiLagrangianCoupled(SemiLagrangianSchemeCoupled):
+    
+    def __init__(self):
+        super().__init__()
+        
+    def updateField(self, grid, gridOld, func, dt):
+        """ 
+        Can I overwrite this function?
+        """
 
 def RK4SchemeCoupled_OLD(funcs, grid, dt, nt):
     """ 
@@ -283,3 +298,53 @@ def RK4SchemeCoupled_OLD(funcs, grid, dt, nt):
     grid.fields["eta"] += dt*(k1 + 2*k2 + 2*k3 + k4)/6
     grid.fields["uVelocity"] += dt*(l1 + 2*l2 + 2*l3 + l4)/6
     grid.fields["vVelocity"] += dt*(m1 + 2*m2 + 2*m3 + m4)/6
+    
+    
+if __name__ == "__main__":
+    
+    import numpy as np
+    import matplotlib.pyplot as plt
+
+    from model import Model
+    from equations import UVelocity, VVelocity, Eta
+    from grids import ArakawaCGrid
+    from plotters import plotContourSubplot
+    
+    xbounds = [0, 1e6]
+    xL = xbounds[1]
+    dx = 50e3
+    nx = int((xbounds[1] - xbounds[0])/dx)
+    # nx = 254
+    grid = ArakawaCGrid(xbounds, nx, periodicX=False)
+
+    # Time stepping information.
+    dt = 350
+    endtime = 30*24*60**2 
+    nt = int(np.ceil(endtime/dt))
+    
+    # Set up the model.
+    model = Model([Eta(), UVelocity(), VVelocity()], grid)
+    
+    #%% Setup matrices. Ax=b
+    
+    # Get the height
+    H = model.eqns[0].params.H
+    
+    # Find A - for reflective boundary conditions.
+    A = np.zeros_like(grid.uField)
+    A[:, 1:-1] = model.eqns[1](grid, "explicit")
+    
+    B = np.zeros_like(grid.vField) 
+    B[1:-1, :] = model.eqns[2](grid, "explicit")
+    
+    dAdx = grid.forwardGradientFieldX(A)
+    dBdy = grid.forwardGradientFieldY(B)
+    
+    ### b column for matrix equation.
+    b = grid.hField - dt*H*(dAdx + dBdy)
+    
+    # Reshape b into column. # Index mapping: b[i, j] == C[i*nx + j]
+    C = b.reshape(-1, 1)
+    
+    ## A matrix for matrix equation.
+    

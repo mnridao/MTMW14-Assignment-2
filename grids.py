@@ -99,6 +99,9 @@ class ArakawaCGrid:
                        "vVelocity" : self.vField if self.periodicY else self.vField[1:-1, :],
                        "eta"       : self.hField}
         
+        # Extra field for bottom topography.
+        self.hBot = np.zeros_like(self.hField)
+        
     def dudxField(self):
         """ 
         """

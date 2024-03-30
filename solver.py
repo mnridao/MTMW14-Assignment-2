@@ -35,7 +35,7 @@ class Solver:
         
         # Run the simulation for each time step.
         for t in range(self.nt):
-            
+
             # Update the grid (no return since it was passed by reference).
             self.scheme(self.model.eqns, self.model.grid, self.dt, t)
                         
@@ -44,12 +44,12 @@ class Solver:
                 eqn["data"][t+1] = eqn["func"](self.model)
                 
             # Store state if necessary (Could just use grid.fields instead).
-            if self.store and t % 20 == 0:
+            if self.store and t % 1 == 0:
                 self.history.append([self.model.grid.uField.copy(),
                                      self.model.grid.vField.copy(),
                                      self.model.grid.hField.copy()])
             
-                # plotContourSubplot(self.model.grid)
+            plotContourSubplot(self.model.grid)
             
     def runEnsemble(self, numEnsembles, perturbationRange):
         """ 

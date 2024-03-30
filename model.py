@@ -47,8 +47,31 @@ class Model:
         for eqn in self.eqns:
             eqn.params.setWindStressX("default" if activate else "off")
             eqn.params.setWindStressY("default" if activate else "off")
-            
+    
+    def activateDamping(self, activate, gamma=None):
+        """ 
+        """
+        
+        # Activate or deactivate the damping for all the model equations.
+        for eqn in self.eqns:
+            eqn.params.activateDamping(activate, gamma)
+    
     def setBlobInitialCondition(self, mu, var, height):
+        """ 
+        """
+        
+        self.grid.hField += self.createBlob(mu, var, height)
+        
+        # Update hField view - this is stupid.
+        self.grid.fields["eta"] = self.grid.hField
+    
+    def setMountainBottomTopography(self, mu, var, height):
+        """ 
+        """
+        
+        self.grid.hBot += self.createBlob(mu, var, height)
+        
+    def createBlob(self, mu, var, height):
         """ 
         """
         # Create the Gaussian blob.
@@ -56,12 +79,8 @@ class Model:
         pos[..., 0] = self.grid.Xmid
         pos[..., 1] = self.grid.Ymid        
         pdf = multivariate_normal(mu, [[var[0], 0], [0, var[1]]]).pdf(pos)
-                
-        # Generate the blob height perturbation field.
-        self.grid.hField += (height/pdf.max() * pdf)
-        
-        # Update hField view - this is stupid.
-        self.grid.fields["eta"] = self.grid.hField
+    
+        return pdf * (height/pdf.max())    
     
     def setSharpShearInitialCondition(self, Vmean=50, f0=1e-4, beta=1.6e-11):
         """ 

@@ -60,7 +60,15 @@ class Parameters:
         
         elif key == "custom" and tau != None:
             self.tauY = tau
-        
+    
+    def activateDamping(self, activate, gamma):
+        """ 
+        """
+        if activate:
+            self.gamma = gamma if gamma else 1e-6 # Reset to default if None.
+        else:
+            self.gamma = 0.
+    
 class BaseEqnSWE(ABC):
     """ 
     """
@@ -109,8 +117,7 @@ class UVelocity(BaseEqnSWE):
         """
         
         # Coriolis parameter (at half grid points - assumes c grid).
-        f = (self.params.f0 + self.params.beta*Y)[..., :u.shape[1]]
-        # f = (self.params.f0 + self.params.beta*(Y - Y.mean()))[..., :u.shape[1]]        
+        f = (self.params.f0 + self.params.beta*Y)[..., :u.shape[1]]    
         
         # Wind forcing in x-direction.
         tauX = self.params.tauX(Y, L)[..., :u.shape[1]]
@@ -147,7 +154,6 @@ class VVelocity(BaseEqnSWE):
         
         # Coriolis parameter.
         f = self.params.f0 + self.params.beta*Y
-        # f = self.params.f0 + self.params.beta*(Y - Y.mean())
         
         # Wind forcing in y-direction.        
         tauY = self.params.tauY(Y)
