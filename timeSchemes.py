@@ -130,7 +130,7 @@ class SemiLagrangianSchemeCoupled:
         # Calculate forcings at current time step.
         forcingsNew = func(grid)
         
-        # Update the current field ([:] required so that it updates).
+        # Update the current field ([:] required so that it doesn't break link).
         grid.fields[func.name][:] = (fieldDP + 0.5*dt*(forcingsNew + forcingsDP))
         
     def calculateDeparturePoint(self, gridOld, dt, funcName):
@@ -298,53 +298,3 @@ def RK4SchemeCoupled_OLD(funcs, grid, dt, nt):
     grid.fields["eta"] += dt*(k1 + 2*k2 + 2*k3 + k4)/6
     grid.fields["uVelocity"] += dt*(l1 + 2*l2 + 2*l3 + l4)/6
     grid.fields["vVelocity"] += dt*(m1 + 2*m2 + 2*m3 + m4)/6
-    
-    
-if __name__ == "__main__":
-    
-    import numpy as np
-    import matplotlib.pyplot as plt
-
-    from model import Model
-    from equations import UVelocity, VVelocity, Eta
-    from grids import ArakawaCGrid
-    from plotters import plotContourSubplot
-    
-    xbounds = [0, 1e6]
-    xL = xbounds[1]
-    dx = 50e3
-    nx = int((xbounds[1] - xbounds[0])/dx)
-    # nx = 254
-    grid = ArakawaCGrid(xbounds, nx, periodicX=False)
-
-    # Time stepping information.
-    dt = 350
-    endtime = 30*24*60**2 
-    nt = int(np.ceil(endtime/dt))
-    
-    # Set up the model.
-    model = Model([Eta(), UVelocity(), VVelocity()], grid)
-    
-    #%% Setup matrices. Ax=b
-    
-    # Get the height
-    H = model.eqns[0].params.H
-    
-    # Find A - for reflective boundary conditions.
-    A = np.zeros_like(grid.uField)
-    A[:, 1:-1] = model.eqns[1](grid, "explicit")
-    
-    B = np.zeros_like(grid.vField) 
-    B[1:-1, :] = model.eqns[2](grid, "explicit")
-    
-    dAdx = grid.forwardGradientFieldX(A)
-    dBdy = grid.forwardGradientFieldY(B)
-    
-    ### b column for matrix equation.
-    b = grid.hField - dt*H*(dAdx + dBdy)
-    
-    # Reshape b into column. # Index mapping: b[i, j] == C[i*nx + j]
-    C = b.reshape(-1, 1)
-    
-    ## A matrix for matrix equation.
-    

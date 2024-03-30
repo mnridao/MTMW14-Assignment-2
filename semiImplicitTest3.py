@@ -85,7 +85,7 @@ if __name__ == "__main__":
         tauX = params.tauX(grid.Ymid, grid.xbounds[1])[..., :u.shape[1]]
         
         # Set the internal A points as forcings without gravity (boundaries are 0).
-        A[:, 1:-1] = (f*grid.vOnUField() - params.gamma*u + tauX/(params.rho*params.H))
+        A[:, 1:-1] += dt*(f*grid.vOnUField() - params.gamma*u + tauX/(params.rho*params.H))
         
         ### CALCULATE B ON V GRID ####
         B = grid.vField.copy()            # Initially set B as current v.
@@ -101,7 +101,7 @@ if __name__ == "__main__":
         tauY = params.tauY(Y)
         
         # Set the internal B points as forcings without gravity (boundaries are 0).
-        B[1:-1, :] = (-f*grid.uOnVField() - params.gamma*v + tauY/(params.rho*params.H))
+        B[1:-1, :] += dt*(-f*grid.uOnVField() - params.gamma*v + tauY/(params.rho*params.H))
         
         ### CALCULATE C ON ETA GRID ####
         C = grid.hField.copy()
