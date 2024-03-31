@@ -70,7 +70,7 @@ class SemiImplicitSchemeCoupled:
         """
         
         ## Default ## 
-        self.L = None
+        self.Linv = None
         
         # Create the implicit matrix that will be used each time step.
         self.createImplicitMatrix(model.grid, model.eqns[0].params, dt)
@@ -98,7 +98,7 @@ class SemiImplicitSchemeCoupled:
         F = (C - dt*funcs[0].params.H*(dAdx + dBdy)).flatten()
         
         # Update the eta field by inverting + solving matrix equation.
-        grid.fields["eta"][:] = spsolve(self.L, F).reshape(grid.hField.shape)
+        grid.fields["eta"][:] = np.matmul(self.Linv, F).reshape(grid.hField.shape)
         
         # Update the velocity fields.
         grid.fields["uVelocity"][:] = ((A if grid.periodicX else A[:, 1:-1]) - 
@@ -147,10 +147,10 @@ class SemiImplicitSchemeCoupled:
         offDiagYTerms = [-sy]*grid.ny*(grid.ny - 1)
             
         # Add off-diagonal elements to L.
-        self.L = (np.diag(offDiagXTerms[:-1], k= 1) + 
-                  np.diag(offDiagXTerms[:-1], k=-1) + 
-                  np.diag(offDiagYTerms, k= grid.nx) + 
-                  np.diag(offDiagYTerms, k=-grid.nx))
+        L = (np.diag(offDiagXTerms[:-1], k= 1) + 
+             np.diag(offDiagXTerms[:-1], k=-1) + 
+             np.diag(offDiagYTerms, k= grid.nx) + 
+             np.diag(offDiagYTerms, k=-grid.nx))
                 
         # Account for periodic boundary conditions.
         if grid.periodicX:
@@ -158,11 +158,14 @@ class SemiImplicitSchemeCoupled:
             periodicXTerms *= (grid.nx-1)
             periodicXTerms += [-sx]
             
-            self.L += np.diag(periodicXTerms, k= grid.nx-1)
-            self.L += np.diag(periodicXTerms, k=-grid.nx+1)
+            L += np.diag(periodicXTerms, k= grid.nx-1)
+            L += np.diag(periodicXTerms, k=-grid.nx+1)
             
         # Add diagonal elements to L.
-        self.L += np.diag((1 - np.sum(self.L, axis=1)))
+        L += np.diag((1 - np.sum(L, axis=1)))
+        
+        # Invert the matrix.
+        self.Linv = np.linalg.inv(L)
     
 class SemiLagrangianSchemeCoupled:
     """ 
