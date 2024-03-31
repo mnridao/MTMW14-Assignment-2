@@ -12,6 +12,7 @@ from model import Model
 from equations import UVelocity, VVelocity, Eta
 from grids import ArakawaCGrid
 from timeSchemes import forwardBackwardSchemeCoupled, RK4SchemeCoupled, SemiLagrangianSchemeCoupled
+from timeSchemes import SemiImplicitSchemeCoupled
 from plotters import plotContourSubplot
 
 def calculateEnergy(model):
@@ -40,7 +41,7 @@ if __name__ == "__main__":
 
     # Time stepping information.
     # dt = 0.99*calculateTimestepCFL(100, dx)
-    dt = 69
+    dt = 200
     # dt = 100
     # dt = 180
     # dt = 1000
@@ -54,11 +55,28 @@ if __name__ == "__main__":
     scheme = forwardBackwardSchemeCoupled
     # scheme = SemiLagrangianSchemeCoupled()
     model = Model([Eta(), UVelocity(), VVelocity()], grid)
+    
+    scheme = SemiImplicitSchemeCoupled(model, dt)
+    
     solver = Solver(model, scheme, dt, nt)
     
     # Add energy calculator to solver.
     # solver.addCustomEquations("energy", calculateEnergy)
         
+    #%% Semi implicit class test
+    solver.model.grid.resetFields()
+    
+    solver.model.activateWindStress(False)
+    solver.model.activateDamping(False)
+    solver.model.setf0(0)
+    solver.model.setBeta(0)
+    
+    solver.model.setBlobInitialCondition(xL*np.array([0.1, 0.5]), 
+                                          ((3*dx)**2*np.array([2, 2])**2), 1*dx)
+    plotContourSubplot(solver.model.grid)
+    
+    solver.run()
+    
     #%% Task D (get plots working here)
     # solver.store = True
     solver.run()

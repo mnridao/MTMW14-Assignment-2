@@ -21,7 +21,7 @@ def createImplicitCoefficientsMatrix(grid, params, dt):
     
     # Create terms for L matrix diagonal.
     sx = params.g*params.H * (dt/grid.dx)**2
-    sy = params.g*params.H * (dt/grid.dx)**2
+    sy = params.g*params.H * (dt/grid.dy)**2
         
     # Represent the terms right and left of the current point (ij)
     offDiagXTerms = [-sx]*(grid.nx - 1) + [0.]
@@ -57,7 +57,6 @@ if __name__ == "__main__":
     xL = xbounds[1]
     dx = 10e3
     nx = int((xbounds[1] - xbounds[0])/dx)
-    # nx = 254
     grid = ArakawaCGrid(xbounds, nx, periodicX=True)
     
     eqns = [Eta(), UVelocity(), VVelocity()]

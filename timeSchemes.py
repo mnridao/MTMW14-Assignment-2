@@ -6,6 +6,7 @@ Student ID: 31827379
 
 import numpy as np
 from scipy.interpolate import RegularGridInterpolator
+from scipy.sparse.linalg import spsolve 
 
 def forwardBackwardSchemeCoupled(funcs, grid, dt, nt):
     """ 
@@ -60,13 +61,109 @@ def RK4SchemeCoupled(funcs, grid, dt, nt):
         k = kfunc[func.name]
         grid.fields[func.name] += dt*(k[0] + 2*k[1] + 2*k[2] + k[3])/6
 
-def semiImplicitSchemeCoupled(self, funcs, grid, dt, nt): 
+class SemiImplicitSchemeCoupled:
     """ 
     """
     
-    # Setup matrix equation to solve for current time step.
+    def __init__(self, model, dt):
+        """ 
+        """
+        
+        ## Default ## 
+        self.L = None
+        
+        # Create the implicit matrix that will be used each time step.
+        self.createImplicitMatrix(model.grid, model.eqns[0].params, dt)
+        
+        
+    def __call__(self, funcs, grid, dt, nt):
+        """ 
+        Messy - ran out of time.
+        """
+        
+        # Calculate A on u-grid.
+        A = self.calculateAgrid(grid, funcs[1], dt)
+        
+        # Calculate B on v-grid.
+        B = self.calculateBgrid(grid, funcs[2], dt)
+        
+        # Calculate C on eta-grid.
+        C = grid.hField.copy()
+        
+        # Calculate gradients of A and B (on eta grid).
+        dAdx = grid.forwardGradientFieldX(A)
+        dBdy = grid.forwardGradientFieldY(B)
+        
+        # Calculate the (flattened) explicit forcings matrix.
+        F = (C - dt*funcs[0].params.H*(dAdx + dBdy)).flatten()
+        
+        # Update the eta field by inverting + solving matrix equation.
+        grid.fields["eta"][:] = spsolve(self.L, F).reshape(grid.hField.shape)
+        
+        # Update the velocity fields.
+        grid.fields["uVelocity"][:] = ((A if grid.periodicX else A[:, 1:-1]) - 
+                                       dt*funcs[0].params.g * grid.detadxField())
+        grid.fields["vVelocity"][:] = (B[1:-1, :] - dt*funcs[0].params.g * 
+                                       grid.detadyField())
+            
+    def calculateAgrid(self, grid, func, dt):
+        """ 
+        I would have liked to make these functions more general.
+        """
+        A = grid.uField.copy()
+        
+        if grid.periodicX:
+            A += dt*(func.explicitTerms(grid))
+        else:
+            A[:, 1:-1] += dt*(func.explicitTerms(grid))
+        
+        return A
+        
+    def calculateBgrid(self, grid, func, dt):
+        """ 
+        """
+        B = grid.vField.copy()
+        
+        if grid.periodicY:
+            B += dt*(func.explicitTerms(grid))
+        else:
+            B[1:-1, :] += dt*(func.explicitTerms(grid))
+            
+        return B      
+        
+    def createImplicitMatrix(self, grid, params, dt):
+        """ 
+        """
+        
+        # Create terms for L matrix diagonal.
+        sx = params.g*params.H * (dt/grid.dx)**2
+        sy = params.g*params.H * (dt/grid.dy)**2
+            
+        # Represent the terms right and left of the current point (ij)
+        offDiagXTerms = [-sx]*(grid.nx - 1) + [0.]
+        offDiagXTerms *= grid.nx
+        
+        # Represent the terms on rows above and below the current point (ij).
+        offDiagYTerms = [-sy]*grid.ny*(grid.ny - 1)
+            
+        # Add off-diagonal elements to L.
+        self.L = (np.diag(offDiagXTerms[:-1], k= 1) + 
+                  np.diag(offDiagXTerms[:-1], k=-1) + 
+                  np.diag(offDiagYTerms, k= grid.nx) + 
+                  np.diag(offDiagYTerms, k=-grid.nx))
+                
+        # Account for periodic boundary conditions.
+        if grid.periodicX:
+            periodicXTerms = [-sx] + [0.]*(grid.nx-1)
+            periodicXTerms *= (grid.nx-1)
+            periodicXTerms += [-sx]
+            
+            self.L += np.diag(periodicXTerms, k= grid.nx-1)
+            self.L += np.diag(periodicXTerms, k=-grid.nx+1)
+            
+        # Add diagonal elements to L.
+        self.L += np.diag((1 - np.sum(self.L, axis=1)))
     
-
 class SemiLagrangianSchemeCoupled:
     """ 
     """
@@ -238,8 +335,7 @@ class SemiLagrangianSchemeCoupled:
         
         return interp((Ydp, Xdp))
 
-# TODO: Semi implicit
-# TODO: Semi implicit semi lagrangian?
+# TODO: Semi implicit semi lagrangian???
 
 class SemiImplicitSemiLagrangianCoupled(SemiLagrangianSchemeCoupled):
     
