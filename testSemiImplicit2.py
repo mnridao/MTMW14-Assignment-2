@@ -22,23 +22,30 @@ def createImplicitCoefficientsMatrix(grid, params, dt):
     # Create terms for L matrix diagonal.
     sx = params.g*params.H * (dt/grid.dx)**2
     sy = params.g*params.H * (dt/grid.dx)**2
-    
-    # Shape of the L matrix.
-    numCols = grid.hField.shape[1]
-    numRows = grid.hField.shape[0]
-    
+        
     # Represent the terms right and left of the current point (ij)
-    offDiagXTerms = [-sx]*(numCols - 1) + [0]
-    offDiagXTerms *= numRows
+    offDiagXTerms = [-sx]*(grid.nx - 1) + [0.]
+    offDiagXTerms *= grid.nx
     
     # Represent the terms on rows above and below the current point (ij).
-    offDiagYTerms = [-sy]*numRows*(numRows - 1)
+    offDiagYTerms = [-sy]*grid.ny*(grid.ny - 1)
         
-    # Full L matrix.
-    L = (np.diag(offDiagXTerms[:-1], k=1) + 
+    # Add off-diagonal elements to L.
+    L = (np.diag(offDiagXTerms[:-1], k= 1) + 
          np.diag(offDiagXTerms[:-1], k=-1) + 
-         np.diag(offDiagYTerms, k=numCols) + 
-         np.diag(offDiagYTerms, k=-numCols))
+         np.diag(offDiagYTerms, k= grid.nx) + 
+         np.diag(offDiagYTerms, k=-grid.nx))
+    
+    # Account for periodic boundary conditions.
+    if grid.periodicX:
+        periodicXTerms = [-sx] + [0.]*(grid.nx-1)
+        periodicXTerms *= (grid.nx-1)
+        periodicXTerms += [-sx]
+        
+        L += np.diag(periodicXTerms, k= grid.nx-1)
+        L += np.diag(periodicXTerms, k=-grid.nx+1)
+        
+    # Add diagonal elements to L.
     L += np.diag((1 - np.sum(L, axis=1)))
     
     return L
@@ -51,17 +58,17 @@ if __name__ == "__main__":
     dx = 10e3
     nx = int((xbounds[1] - xbounds[0])/dx)
     # nx = 254
-    grid = ArakawaCGrid(xbounds, nx, periodicX=False)
+    grid = ArakawaCGrid(xbounds, nx, periodicX=True)
     
-    # dt = 400
-    dt = 69
+    dt = 400
+    # dt = 69
     
     # Get the default parameters.
     params = Parameters()
     
     # Add blob initial condition to eta field.
     model = Model([Eta(), UVelocity(), VVelocity()], grid)
-    model.setBlobInitialCondition(xL*np.array([0.5, 0.55]), 
+    model.setBlobInitialCondition(xL*np.array([0.1, 0.5]), 
                                   ((2*dx)**2*np.array([2, 2])**2), 1*dx)
             
     # Just incase not updating.
@@ -85,8 +92,8 @@ if __name__ == "__main__":
         C = grid.hField.copy()
         
         # Calculate gradients of A and B (on eta grid).
-        dAdx = (A[:, 1:] - A[:, :-1]) / grid.dx
-        dBdy = (B[1:, :] - B[:-1, :]) / grid.dy
+        dAdx = grid.forwardGradientFieldX(A)
+        dBdy = grid.forwardGradientFieldY(B)
                 
         # Calculate and flatten explicit forcings array.
         F = (C - dt*params.H*(dAdx + dBdy)).flatten()
@@ -95,19 +102,27 @@ if __name__ == "__main__":
         grid.hField = spsolve(L, F).reshape(grid.hField.shape)
         
         # Update velocity fields.
-        grid.uField[:, 1:-1] = A[:, 1:-1] - dt*params.g * grid.detadxField()
+        if grid.periodicX:
+            grid.uField = A - dt*params.g * grid.detadxField()
+        else:
+            grid.uField[:, 1:-1] = A[:, 1:-1] - dt*params.g * grid.detadxField()
+            
         grid.vField[1:-1, :] = B[1:-1, :] - dt*params.g * grid.detadyField()
             
         # Update the viewers (dont worry about this - just so grid is properly updated).
         grid.fields["eta"] = grid.hField 
-        grid.fields["uVelocity"] = grid.uField[:, 1:-1]
+        
+        if grid.periodicX:
+            grid.fields["uVelocity"] = grid.uField 
+        else:
+            grid.fields["uVelocity"] = grid.uField[:, 1:-1]
         grid.fields["vVelocity"] = grid.vField[1:-1, :]
         
         # Plot to see.
         plotContourSubplot(grid)
                 
-        # Store h grid.
-        hFields.append(grid.hField)
+        # # Store h grid.
+        # hFields.append(grid.hField)
     
 #%%
     minH = min(np.min(state) for state in hFields)

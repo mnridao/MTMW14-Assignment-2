@@ -80,9 +80,7 @@ class BaseEqnSWE(ABC):
     
     def __call__(self, grid):
         """
-        """
-        # params.updateParams()
-        
+        """        
         return self._f(grid)
     
     @abstractmethod
@@ -93,6 +91,10 @@ class BaseEqnSWE(ABC):
     def forcings(self):
         pass
         
+    @abstractmethod 
+    def explicitTerms(self, grid):
+        pass
+    
 class UVelocity(BaseEqnSWE):
     """ 
     """
@@ -124,6 +126,23 @@ class UVelocity(BaseEqnSWE):
         
         return (f*v - self.params.g*detadx - 
                 self.params.gamma*u + tauX/(self.params.rho*self.params.H))
+    
+    def explicitTerms(self, grid):
+        """ 
+        A lot of repetition here (easier atm) - will improve this if I have 
+        time.
+        """
+        u = grid.fields["uVelocity"]
+        
+        # Coriolis parameter (at half grid points - assumes c grid).
+        f = (self.params.f0 + self.params.beta*grid.Ymid)[..., :u.shape[1]]  
+        
+        # Wind forcing in x-direction.
+        tauX = self.params.tauX(grid.Ymid, grid.xbounds[1])[..., :u.shape[1]]
+        
+        # Return the forcings without the gravity terms.
+        return (f*grid.vOnUField() - self.params.gamma*u + 
+                tauX/(self.params.rho*self.params.H))
     
 class VVelocity(BaseEqnSWE):
     """ 
@@ -161,6 +180,27 @@ class VVelocity(BaseEqnSWE):
         return (-f*u - self.params.g*detady - self.params.gamma*v + 
                 tauY/(self.params.rho*self.params.H))
     
+    def explicitTerms(self, grid):
+        """ 
+        A lot of repetition here (easier atm) - will improve this if I have 
+        time.
+        """
+        
+        # Get the v field.
+        v = grid.fields["vVelocity"]
+        
+        # Values of Y for the current problem.
+        Y = (grid.Y if grid.periodicY else grid.Y[1:-1, :])[..., :v.shape[1]]
+        
+        # Coriolis parameter.
+        f = self.params.f0 + self.params.beta*Y
+        
+        # Wind forcing in y-direction.        
+        tauY = self.params.tauY(Y)
+        
+        return (-f*grid.uOnVField() - self.params.gamma*v + 
+                tauY/(self.params.rho*self.params.H))
+    
 class Eta(BaseEqnSWE):
     """ 
     """
@@ -181,3 +221,9 @@ class Eta(BaseEqnSWE):
         """ 
         """
         return - self.params.H*(dudx + dvdy)
+
+    def explicitTerms(self, grid):
+        """ 
+        """
+        
+        pass

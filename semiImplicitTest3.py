@@ -22,23 +22,30 @@ def createImplicitCoefficientsMatrix(grid, params, dt):
     # Create terms for L matrix diagonal.
     sx = params.g*params.H * (dt/grid.dx)**2
     sy = params.g*params.H * (dt/grid.dx)**2
-    
-    # Shape of the L matrix.
-    numCols = grid.hField.shape[1]
-    numRows = grid.hField.shape[0]
-    
+        
     # Represent the terms right and left of the current point (ij)
-    offDiagXTerms = [-sx]*(numCols - 1) + [0]
-    offDiagXTerms *= numRows
+    offDiagXTerms = [-sx]*(grid.nx - 1) + [0.]
+    offDiagXTerms *= grid.nx
     
     # Represent the terms on rows above and below the current point (ij).
-    offDiagYTerms = [-sy]*numRows*(numRows - 1)
+    offDiagYTerms = [-sy]*grid.ny*(grid.ny - 1)
         
-    # Full L matrix.
-    L = (np.diag(offDiagXTerms[:-1], k=1) + 
+    # Add off-diagonal elements to L.
+    L = (np.diag(offDiagXTerms[:-1], k= 1) + 
          np.diag(offDiagXTerms[:-1], k=-1) + 
-         np.diag(offDiagYTerms, k=numCols) + 
-         np.diag(offDiagYTerms, k=-numCols))
+         np.diag(offDiagYTerms, k= grid.nx) + 
+         np.diag(offDiagYTerms, k=-grid.nx))
+    
+    # Account for periodic boundary conditions.
+    if grid.periodicX:
+        periodicXTerms = [-sx] + [0.]*(grid.nx-1)
+        periodicXTerms *= (grid.nx-1)
+        periodicXTerms += [-sx]
+        
+        L += np.diag(periodicXTerms, k= grid.nx-1)
+        L += np.diag(periodicXTerms, k=-grid.nx+1)
+        
+    # Add diagonal elements to L.
     L += np.diag((1 - np.sum(L, axis=1)))
     
     return L
@@ -51,9 +58,11 @@ if __name__ == "__main__":
     dx = 10e3
     nx = int((xbounds[1] - xbounds[0])/dx)
     # nx = 254
-    grid = ArakawaCGrid(xbounds, nx, periodicX=False)
+    grid = ArakawaCGrid(xbounds, nx, periodicX=True)
     
-    dt = 69
+    eqns = [Eta(), UVelocity(), VVelocity()]
+    
+    dt = 300
     endtime = 30*24*60**2 
     nt = int(np.ceil(endtime/dt))
     
@@ -72,45 +81,31 @@ if __name__ == "__main__":
     hFields = []
     for t in range(nt):
         
-        ### CALCULATE A ON U GRID ####
-        A = grid.uField.copy()           # Initially set A as current u.
+        # Calculate A on u-grid.
+        A = grid.uField.copy()
         
-        # Get the internal u points from grid.
-        u = grid.fields["uVelocity"]
+        # Account for different boundary conditions.
+        if grid.periodicX:
+            A += dt*(eqns[1].explicitTerms(grid))
+        else:
+            A[:, 1:-1] += dt*(eqns[1].explicitTerms(grid))
         
-        # Coriolis parameter (at half grid points - assumes c grid).
-        f = (params.f0 + params.beta*grid.Ymid)[..., :u.shape[1]]    
+        # Calculate B on v-grid.
+        B = grid.vField.copy()
         
-        # Wind forcing in x-direction.
-        tauX = params.tauX(grid.Ymid, grid.xbounds[1])[..., :u.shape[1]]
+        if grid.periodicY:
+            B += dt*(eqns[2].explicitTerms(grid))
+        else:
+            B[1:-1, :] += dt*(eqns[2].explicitTerms(grid))
         
-        # Set the internal A points as forcings without gravity (boundaries are 0).
-        A[:, 1:-1] += dt*(f*grid.vOnUField() - params.gamma*u + tauX/(params.rho*params.H))
-        
-        ### CALCULATE B ON V GRID ####
-        B = grid.vField.copy()            # Initially set B as current v.
-        
-        # Get the internal v points from grid.
-        v = grid.fields["vVelocity"]
-        Y = grid.Y[1:-1, :-1]
-        
-        # Coriolis parameter.
-        f = params.f0 + params.beta*Y
-        
-        # Wind forcing in y-direction.        
-        tauY = params.tauY(Y)
-        
-        # Set the internal B points as forcings without gravity (boundaries are 0).
-        B[1:-1, :] += dt*(-f*grid.uOnVField() - params.gamma*v + tauY/(params.rho*params.H))
-        
-        ### CALCULATE C ON ETA GRID ####
+        # Calculate C on eta-grid.
         C = grid.hField.copy()
         
-        # Calculate gradients of A and B (on eta grid).
-        dAdx = (A[:, 1:] - A[:, :-1]) / grid.dx
-        dBdy = (B[1:, :] - B[:-1, :]) / grid.dy
+        # Calculate gradients of A and B (on eta grid).        
+        dAdx = grid.forwardGradientFieldX(A)
+        dBdy = grid.forwardGradientFieldY(B)
                 
-        # Calculate and flatten explicit forcings array.
+        # Calculate and flatten (row stack) explicit forcings array.
         F = (C - dt*params.H*(dAdx + dBdy)).flatten()
         
         # Update eta.

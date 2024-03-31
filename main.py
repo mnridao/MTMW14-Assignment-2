@@ -36,7 +36,7 @@ if __name__ == "__main__":
     dx = 10e3
     nx = int((xbounds[1] - xbounds[0])/dx)
     # nx = 254
-    grid = ArakawaCGrid(xbounds, nx, periodicX=False)
+    grid = ArakawaCGrid(xbounds, nx, periodicX=True)
 
     # Time stepping information.
     # dt = 0.99*calculateTimestepCFL(100, dx)
@@ -47,7 +47,7 @@ if __name__ == "__main__":
     # dt = 100
     endtime = 30*24*60**2 
     nt = int(np.ceil(endtime/dt))
-    nt = 334
+    nt = 257
     
     # Set up the model and solver.
     # scheme = RK4SchemeCoupled
