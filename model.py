@@ -9,10 +9,19 @@ from scipy.stats import multivariate_normal
 
 class Model:
     """ 
+    Class responsible for holding the equations to the SWE problem and the 
+    grid. Problem parameters and initial conditions are set through this class.
     """
         
     def __init__(self, eqns, grid):
         """ 
+        Inputs
+        -------
+        eqns : list of BaseEqnSWE objects
+               Each of the coupled equations that appears in the problem.
+       grid  : ArakawaCGrid object
+               Object containing the domain and state information for the 
+               problem.
         """
         # Model equations and domain.
         self.eqns = eqns
@@ -20,6 +29,12 @@ class Model:
     
     def setH(self, H):
         """ 
+        Set the height of the background state for the SWE problem.
+        
+        Inputs
+        ------
+        H : float
+            Reference height.
         """
         
         # Update H for each of the equations in the model.
@@ -28,6 +43,12 @@ class Model:
                 
     def setf0(self, f0):
         """ 
+        Set the coriolis parameter at a reference latitude for the SWE problem.
+        
+        Inputs
+        ------
+        fo : float
+             Coriolis parameter at a reference latitude.
         """
         # Update f0 for each of the equations in the model.
         for eqn in self.eqns:
@@ -35,6 +56,12 @@ class Model:
     
     def setBeta(self, beta):
         """ 
+        Set the gradient of the coriolis parameter with respect to latitude.
+        
+        Inputs
+        ------
+        beta : float
+               The gradient of the coriolis parameter with resepct to latitude.
         """
         # Update beta for each of the equations in the model.
         for eqn in self.eqns:
@@ -42,6 +69,12 @@ class Model:
         
     def activateWindStress(self, activate):
         """
+        Activate the wind stress.
+        
+        Inputs
+        ------
+        activate : bool
+                   Turn wind forcing on/off.
         """
         # Activate or deactivate the wind stress for all the model equations.
         for eqn in self.eqns:
@@ -49,7 +82,15 @@ class Model:
             eqn.params.setWindStressY("default" if activate else "off")
     
     def activateDamping(self, activate, gamma=None):
-        """ 
+        """
+        Activate the damping.
+        
+        Inputs
+        ------
+        activate : bool
+                   Turn damping on/off.
+        gamma    : Value of gamma that will be set if damping is turned on, 
+                   default value is restored if gamma=None.
         """
         
         # Activate or deactivate the damping for all the model equations.
@@ -58,6 +99,18 @@ class Model:
     
     def setBlobInitialCondition(self, mu, var, height):
         """ 
+        Initialises the height perturbation field (eta) with a 2D Gaussian 
+        blob at a specified location.
+        
+        Inputs
+        -------
+        mu     : np array
+                 Array of the mean location of the 2D Gaussian blob.
+        var    : np array
+                 Array of the variance of the 2D Gaussian blob. Or is it 
+                 standard deviation? I've forgotten. Basically the spread.
+        height : float
+                 Height of the maximum peak of the Gaussian blob.
         """
         
         self.grid.hField += self.createBlob(mu, var, height)
@@ -67,12 +120,34 @@ class Model:
     
     def setMountainBottomTopography(self, mu, var, height):
         """ 
+        Initialises the bottom topography of the problem. Default is flat. 
+        
+        I am not convinced that this works.
+        
+        Inputs
+        -------
+        mu     : np array
+                 Array of the mean location of the 2D Gaussian blob.
+        var    : np array
+                 The spread of the 2D Gaussian blob.
+        height : float
+                 Height of the maximum peak of the Gaussian blob.
         """
         
         self.grid.hBot += self.createBlob(mu, var, height)
         
     def createBlob(self, mu, var, height):
         """ 
+        Creates the 2D Gaussian blob.
+        
+        Inputs
+        -------
+        mu     : np array
+                 Array of the mean location of the 2D Gaussian blob.
+        var    : np array
+                 The spread of the 2D Gaussian blob.
+        height : float
+                 Height of the maximum peak of the Gaussian blob.
         """
         # Create the Gaussian blob.
         pos = np.empty(self.grid.Xmid.shape + (2,))
@@ -84,6 +159,10 @@ class Model:
     
     def setSharpShearInitialCondition(self, Vmean=50, f0=1e-4, beta=1.6e-11):
         """ 
+        This is from when I was trying to make Rossby waves. Inspired by 
+        Robin Hogan.
+        
+        I don't think that this works.
         """
         
         # Set parameters for the initial condition.
@@ -110,6 +189,10 @@ class Model:
         
     def setGeostrophicBalanceInitialCondition(self):
         """ 
+        This is from when I was trying to make Rossby waves. Inspired by 
+        Robin Hogan.
+        
+        I don't think that this works.
         """
         
         # Parameters for calculation.
@@ -154,16 +237,14 @@ class Model:
         
     def addRandomNoise(self):
         """ 
+        This is from when I was trying to make Rossby waves. Inspired by 
+        Robin Hogan.
+        
+        I don't think that this works.
         """
         
         # Coriolis plane.
-        # F = (self.eqns[0].params.f0 + self.eqns[0].params.beta*self.grid.Ymid)
-        F = (self.eqns[0].params.f0 + 
-              self.eqns[0].params.beta*(self.grid.Ymid - self.grid.Ymid.mean()))
+        F = (self.eqns[0].params.f0 + self.eqns[0].params.beta*self.grid.Ymid)
         
         r, c = self.grid.hField.shape
         self.grid.hField += 1*np.random.randn(r, c)*(F/self.eqns[0].params.f0)
-        # self.grid.hField += 1*np.random.uniform(size=(r,c))*(F/self.eqns[0].params.f0)
-        # self.grid.hField += np.random.uniform(size=self.grid.hField.shape)
-
-        # self.grid.hField += 1.0*np.random.randn(r,c)*(self.grid.dx/1.0e5)*(np.abs(F)/1e-16);

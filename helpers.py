@@ -3,39 +3,58 @@ MTMW14 Assignment 2
 
 Student ID: 31827379
 """
-
+    
 import numpy as np
 
 def calculateEnergyModel(model):
     """ 
-    Calculates the energy 
+    Calculates the energy of the numerical solution. Energy is calculated at 
+    the centroid of each cell (the eta grid), so velocities are interpolated.
     
     Inputs
     -------
+    model : Model object 
+            Object containing the problem equations and grid.
     
     Returns
     -------
+    energy : float
+       The energy calculated for the current state of the model.
     """
-    # Get the problem parameters from one of the equations in the model.
-    params = model.eqns[0].params
     
     # Interpolate u and v onto eta grid.
-    u = 
+    u = 0.5*(model.grid.uField[:, :-1] + model.grid.uField[:, 1:])
+    v = 0.5*(model.grid.vField[:-1, :] + model.grid.vField[1:, :])
+    
+    return calculateEnergy(u, v, model.grid.hField, 
+                           model.grid.dx, model.eqns[0].params)
 
-    return (np.sum(0.5*params.rho*(model.grid.uField[:, :-1]**2 + 
-                                   model.grid.vField[:-1, :]**2 + 
-                                   params.g*model.grid.hField**2))* 
-            model.grid.dx**2)
+    # return (np.sum(0.5*params.rho*(model.grid.uField[:, :-1]**2 + 
+    #                                model.grid.vField[:-1, :]**2 + 
+    #                                params.g*model.grid.hField**2))* 
+    #         model.grid.dx**2)
 
 def calculateEnergy(u, v, eta, dx, params):
     """
-    Calculates the energy
+    Calculates the energy of either the numerical or analytical solution.
     
     Inputs
     -------
+    u      : np array
+             Array containing the u-velocity values.
+    v      : np array
+             Array containing the v-velocity values.
+    eta    : np array
+             Array containing the eta values.
+    dx     : float
+             Grid spacing.
+    params : Parameters object.
+             Object containing the parameter values for the problem.
     
     Returns
     -------
+    energy : float
+       The energy calculated for the current state of the model.
     """
     
     return (np.sum(0.5*params.rho*(u**2 + v**2 + params.g*eta**2))*dx**2)
