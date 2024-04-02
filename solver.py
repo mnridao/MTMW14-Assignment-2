@@ -114,7 +114,7 @@ class Solver:
         dt      : float
                   New timestep.
         endtime : float
-                  Required endtime for the simulation. Used to re-calculate nt.
+                  Required endtime for the simulation. Used to recalculate nt.
         """
         self.dt = dt
         self.nt = int(np.ceil(endtime/dt))

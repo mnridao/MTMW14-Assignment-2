@@ -54,11 +54,15 @@ def analyticalSolution(X, Y, L, params, eta0=0.):
     v = (params.tau0/(np.pi*params.gamma*params.rho*params.H) * 
          f2(X/L, a, b) * np.sin(np.pi*Y/L))
     
-    # Calculate eta.
-    eta = eta0 + (params.tau0/(np.pi*params.gamma*params.rho*params.H) * 
-                  params.f0*L/params.g * (params.gamma/(params.f0*np.pi) * 
-                  f2(X/L, a, b)*np.cos(np.pi*Y/L) + f1(X/L, a, b)/np.pi * 
-                  (np.sin(np.pi*Y/L)*(1 + params.beta*Y/params.f0) + params.beta*L /
-                  (params.f0*np.pi)*np.cos(np.pi*Y/L))))
+    # Calculate eta (this is ugly no matter what, this is clear to me at least).
+    eta = eta0 + (params.tau0/(np.pi*params.gamma*params.rho*params.H)* 
+                  params.f0*L/params.g*(params.gamma/(params.f0*np.pi)*
+                                        f2(X/L, a, b)*np.cos(np.pi*Y/L) + 
+                                        f1(X/L, a, b)/np.pi*(np.sin(np.pi*Y/L)*
+                                        (1 + params.beta*Y/params.f0) + 
+                                        params.beta*L/(params.f0*np.pi)*
+                                        np.cos(np.pi*Y/L))
+                                        )
+                  )
     
     return u, v, eta   # Don't really like this.

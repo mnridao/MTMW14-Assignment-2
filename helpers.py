@@ -5,6 +5,36 @@ Student ID: 31827379
 """
     
 import numpy as np
+import timeSchemes as schemes
+
+def setScheme(s, model=None, dt=None):
+    """ 
+    Set the scheme for the problem.
+    
+    Inputs
+    -------
+    s     : string
+            Key for the required time scheme.
+    model : Model object
+            Object containing the model information (grid and equations).
+    dt    : float
+            Timestep.
+    """
+    if s == 1 or s == "forwardBackward":
+        scheme = schemes.forwardBackwardSchemeCoupled
+    elif s == 2 or s == "rk4":
+        scheme = schemes.RK4SchemeCoupled
+    elif s == 3 or s == "semiImplicit":
+        if model and dt:
+            scheme = schemes.SemiImplicitSchemeCoupled(model, dt)
+        else:
+            print("Need to input model and dt.")
+            return None
+    elif s == 4 or s == "semiLagrangian":
+        scheme = schemes.SemiLagrangianSchemeCoupled
+    else: 
+        return None
+    return scheme
 
 def calculateEnergyModel(model):
     """ 
