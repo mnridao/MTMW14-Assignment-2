@@ -20,8 +20,8 @@ def createImplicitCoefficientsMatrix(grid, params, dt):
     """
     
     # Create terms for L matrix diagonal.
-    sx = params.g*params.H * (dt/grid.dx)**2
-    sy = params.g*params.H * (dt/grid.dx)**2
+    sx = params.g*params.H * 0.25*(dt/grid.dx)**2
+    sy = params.g*params.H * 0.25*(dt/grid.dx)**2
         
     # Represent the terms right and left of the current point (ij)
     offDiagXTerms = [-sx]*(grid.nx - 1) + [0.]
@@ -58,7 +58,7 @@ if __name__ == "__main__":
     dx = 10e3
     nx = int((xbounds[1] - xbounds[0])/dx)
     # nx = 254
-    grid = ArakawaCGrid(xbounds, nx, periodicX=True)
+    grid = ArakawaCGrid(xbounds, nx, periodicX=False)
     
     dt = 400
     # dt = 69
@@ -79,6 +79,7 @@ if __name__ == "__main__":
     
     # Calculate the L grid (coefficient matrix of implicit terms).    
     L = createImplicitCoefficientsMatrix(grid, params, dt)
+    Linv = np.linalg.inv(L)
     
     #%% Time loop
     
@@ -99,7 +100,7 @@ if __name__ == "__main__":
         F = (C - dt*params.H*(dAdx + dBdy)).flatten()
         
         # Update eta.
-        grid.hField = spsolve(L, F).reshape(grid.hField.shape)
+        grid.hField = np.matmul(Linv, F).reshape(grid.hField.shape)
         
         # Update velocity fields.
         if grid.periodicX:

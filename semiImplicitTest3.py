@@ -20,8 +20,8 @@ def createImplicitCoefficientsMatrix(grid, params, dt):
     """
     
     # Create terms for L matrix diagonal.
-    sx = params.g*params.H * (dt/grid.dx)**2
-    sy = params.g*params.H * (dt/grid.dy)**2
+    sx = params.g*params.H * 0.25*(dt/grid.dx)**2
+    sy = params.g*params.H * 0.25*(dt/grid.dy)**2
         
     # Represent the terms right and left of the current point (ij)
     offDiagXTerms = [-sx]*(grid.nx - 1) + [0.]
@@ -57,9 +57,20 @@ if __name__ == "__main__":
     xL = xbounds[1]
     dx = 10e3
     nx = int((xbounds[1] - xbounds[0])/dx)
-    grid = ArakawaCGrid(xbounds, nx, periodicX=True)
+    grid = ArakawaCGrid(xbounds, nx, periodicX=False)
     
     eqns = [Eta(), UVelocity(), VVelocity()]
+    
+    model = Model([Eta(), UVelocity(), VVelocity()], grid)
+    
+    model.activateWindStress(False)
+    model.activateDamping(False)
+    model.setf0(0)
+    model.setBeta(0)
+    
+    model.setBlobInitialCondition(xL*np.array([0.5, 0.5]), 
+                                  ((3*dx)**2*np.array([2, 2])**2), 1*dx)
+    grid = model.grid
     
     dt = 300
     endtime = 30*24*60**2 
@@ -73,6 +84,7 @@ if __name__ == "__main__":
     
     #### L Matrix ####
     L = createImplicitCoefficientsMatrix(grid, params, dt)
+    Linv = np.linalg.inv(L)
     
     #%% Time loop.
     
@@ -85,17 +97,21 @@ if __name__ == "__main__":
         
         # Account for different boundary conditions.
         if grid.periodicX:
-            A += dt*(eqns[1].explicitTerms(grid))
+            A += dt*(eqns[1].explicitTerms(grid) + 
+                     0.5*eqns[1].params.g*grid.detadxField())
         else:
-            A[:, 1:-1] += dt*(eqns[1].explicitTerms(grid))
+            A[:, 1:-1] += dt*(eqns[1].explicitTerms(grid) + 
+                              0.5*eqns[1].params.g*grid.detadxField())
         
         # Calculate B on v-grid.
         B = grid.vField.copy()
         
         if grid.periodicY:
-            B += dt*(eqns[2].explicitTerms(grid))
+            B += dt*(eqns[2].explicitTerms(grid) + 
+                     0.5*eqns[2].params.g*grid.detadyField())
         else:
-            B[1:-1, :] += dt*(eqns[2].explicitTerms(grid))
+            B[1:-1, :] += dt*(eqns[2].explicitTerms(grid) 
+                              + 0.5*eqns[2].params.g*grid.detadyField())
         
         # Calculate C on eta-grid.
         C = grid.hField.copy()
@@ -105,15 +121,15 @@ if __name__ == "__main__":
         dBdy = grid.forwardGradientFieldY(B)
                 
         # Calculate and flatten (row stack) explicit forcings array.
-        F = (C - dt*params.H*(dAdx + dBdy)).flatten()
+        F = (C - 0.5*dt*params.H*(dAdx + dBdy)).flatten()
         
         # Update eta.
         # grid.hField = np.matmul(np.linalg.inv(L), F).reshape(grid.hField.shape)
-        grid.hField = spsolve(L, F).reshape(grid.hField.shape)
+        grid.hField = np.matmul(Linv, F).reshape(grid.hField.shape)
         
         # Update velocity fields.
-        grid.uField[:, 1:-1] = A[:, 1:-1] - dt*params.g * grid.detadxField()
-        grid.vField[1:-1, :] = B[1:-1, :] - dt*params.g * grid.detadyField()
+        grid.uField[:, 1:-1] = A[:, 1:-1] - 0.5*dt*params.g*grid.detadxField()
+        grid.vField[1:-1, :] = B[1:-1, :] - 0.5*dt*params.g*grid.detadyField()
             
         # Update the viewers.
         grid.fields["eta"] = grid.hField 

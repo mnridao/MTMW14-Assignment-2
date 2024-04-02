@@ -34,25 +34,20 @@ if __name__ == "__main__":
     # Grid creation.
     xbounds = [0, 1e6]
     xL = xbounds[1]
-    dx = 10e3
+    dx = 25e3
     nx = int((xbounds[1] - xbounds[0])/dx)
     # nx = 254
-    grid = ArakawaCGrid(xbounds, nx, periodicX=True)
+    grid = ArakawaCGrid(xbounds, nx, periodicX=False)
 
     # Time stepping information.
     # dt = 0.99*calculateTimestepCFL(100, dx)
-    dt = 200
-    # dt = 100
-    # dt = 180
-    # dt = 1000
-    # dt = 100
+    dt = 10*24*60**2
     endtime = 30*24*60**2 
     nt = int(np.ceil(endtime/dt))
-    nt = 257
     
     # Set up the model and solver.
     # scheme = RK4SchemeCoupled
-    scheme = forwardBackwardSchemeCoupled
+    # scheme = forwardBackwardSchemeCoupled
     # scheme = SemiLagrangianSchemeCoupled()
     model = Model([Eta(), UVelocity(), VVelocity()], grid)
     
@@ -325,7 +320,7 @@ if __name__ == "__main__":
     maxH = max(np.max(state[2]) for state in solver.history)
     
     # Set up the figure and axis
-    # fig = plt.figure(figsize=(20, 20))
+    fig = plt.figure(figsize=(20, 20))
     ax = fig.add_subplot(111, projection='3d')
     
     def update(frame):

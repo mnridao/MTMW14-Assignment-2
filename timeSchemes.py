@@ -6,16 +6,28 @@ Student ID: 31827379
 
 import numpy as np
 from scipy.interpolate import RegularGridInterpolator
-from scipy.sparse.linalg import spsolve 
 
 def forwardBackwardSchemeCoupled(funcs, grid, dt, nt):
     """ 
+    Forward-backward time scheme for coupled equations. The eta equation is 
+    solved first, then each iteration the order that the u- and v-velocities 
+    are solved is switched. Each equation solved using forward euler.
     
     Inputs
     -------
+    funcs : list of callable objects
+            RHS of differenetial equation to be solved numerically.
+    grid  : ArakawaCGrid object
+            Object containing the domain and state information for the problem.
+            Passed by reference.
+    dt    : float
+            Timestep.
+    nt    : int 
+            Current iteration of the simulation.
     
     Returns
     -------
+    None
     """
     # Forward-euler for scalar field (height perturbation).
     grid.fields[funcs[0].name] += dt*funcs[0](grid)
@@ -25,11 +37,26 @@ def forwardBackwardSchemeCoupled(funcs, grid, dt, nt):
         
         # Forward-euler step for the current velocity field.
         grid.fields[func.name] += dt*func(grid)
-    
 
 def RK4SchemeCoupled(funcs, grid, dt, nt):
     """ 
-    sad
+    Runge-Kutte-4 scheme for coupled equations.
+    
+    Inputs
+    -------
+    funcs : list of callable objects
+            RHS of differenetial equation to be solved numerically.
+    grid  : ArakawaCGrid object
+            Object containing the domain and state information for the problem.
+            Passed by reference.
+    dt    : float
+            Timestep.
+    nt    : int 
+            Current iteration of the simulation.
+    
+    Returns
+    -------
+    None
     """
     
     # Initialise k as dict (please think of something better).
@@ -62,14 +89,25 @@ def RK4SchemeCoupled(funcs, grid, dt, nt):
         grid.fields[func.name] += dt*(k[0] + 2*k[1] + 2*k[2] + k[3])/6
 
 class SemiImplicitSchemeCoupled:
-    """ 
+    """
+    Semi-Implicit scheme for coupled equations, treating the gravity terms as
+    implicit and the remaining forcing terms as explicit.
     """
     
     def __init__(self, model, dt):
-        """ 
+        """
+        Initialisation of the object. Arguments passed are necessary for the 
+        creation of the implicit matrix inverse.
+        
+        Inputs
+        -------
+        model : Model object 
+                Object containing the problem and the grid.
+        dt    : float
+                Timestep.
         """
         
-        ## Default ## 
+        # Default implicit matrix inverse.
         self.Linv = None
         
         # Create the implicit matrix that will be used each time step.
@@ -78,7 +116,30 @@ class SemiImplicitSchemeCoupled:
         
     def __call__(self, funcs, grid, dt, nt):
         """ 
-        Messy - ran out of time.
+        Semi-implicit scheme for coupled equations. The discretisation scheme 
+        used is forward euler, and the gravity terms are treated fully 
+        implicitly, i.e. no mixed explicit-implicit treatment of gravity waves
+        like the trapezoidal method in the notes.
+        
+        This is very messy - I would have liked to clean it up a bit but I ran 
+        out of time. 
+        
+        Inputs
+        -------
+        funcs : list of callable objects
+                RHS of differenetial equation to be solved numerically.
+        grid  : ArakawaCGrid object
+                Object containing the domain and state information for the 
+                problem.
+                Passed by reference.
+        dt    : float
+                Timestep.
+        nt    : int 
+                Current iteration of the simulation.
+        
+        Returns
+        -------
+        None
         """
         
         # Calculate A on u-grid.
@@ -100,7 +161,7 @@ class SemiImplicitSchemeCoupled:
         # Update the eta field by inverting + solving matrix equation.
         grid.fields["eta"][:] = np.matmul(self.Linv, F).reshape(grid.hField.shape)
         
-        # Update the velocity fields.
+        # Update the velocity fields - [:] needed to not lose connection.
         grid.fields["uVelocity"][:] = ((A if grid.periodicX else A[:, 1:-1]) - 
                                        dt*funcs[0].params.g * grid.detadxField())
         grid.fields["vVelocity"][:] = (B[1:-1, :] - dt*funcs[0].params.g * 
@@ -108,10 +169,27 @@ class SemiImplicitSchemeCoupled:
             
     def calculateAgrid(self, grid, func, dt):
         """ 
-        I would have liked to make these functions more general.
+        Calculates the A grid used in the calculation of the explicit forcings
+        array. I would have liked to make these functions more general.
+        
+        Inputs
+        -------
+        grid  : ArakawaCGrid object
+                Object containing the domain and state information for the 
+                problem.
+        func  : UVelocity object.
+                RHS of differenetial u-velocity equation to be solved numerically.
+        dt    : float
+                Timestep.
+        
+        Returns
+        -------
+        A : np array
         """
+        # Initialise as copy of u-velocity array. 
         A = grid.uField.copy()
         
+        # Account for different indexing from different boundary conditions.
         if grid.periodicX:
             A += dt*(func.explicitTerms(grid))
         else:
@@ -121,9 +199,27 @@ class SemiImplicitSchemeCoupled:
         
     def calculateBgrid(self, grid, func, dt):
         """ 
+        Calculates the B grid used in the calculation of the explicit forcings
+        array. I would have liked to make these functions more general.
+        
+        Inputs
+        -------
+        grid  : ArakawaCGrid object
+                Object containing the domain and state information for the 
+                problem.
+        func  : VVelocity object.
+                RHS of differenetial v-velocity equation to be solved numerically.
+        dt    : float
+                Timestep.
+        
+        Returns
+        -------
+        B : np array
         """
+        # Initialise as copy of v-velocity array. 
         B = grid.vField.copy()
         
+        # Account for different indexing from different boundary conditions.
         if grid.periodicY:
             B += dt*(func.explicitTerms(grid))
         else:
@@ -133,6 +229,23 @@ class SemiImplicitSchemeCoupled:
         
     def createImplicitMatrix(self, grid, params, dt):
         """ 
+        Creates the implicit matrix and inverts it. This is done when the 
+        object is first initialised, and the inverted matrix is stored to avoid
+        recalculating it at each iteration.
+        
+        Inputs
+        -------
+        grid  : ArakawaCGrid object
+                Object containing the domain and state information for the 
+                problem.
+        params: Parameters object 
+                Object containing the parameters for the problem.
+        dt    : float
+                Timestep.
+        
+        Returns
+        -------
+        None
         """
         
         # Create terms for L matrix diagonal.
@@ -169,20 +282,50 @@ class SemiImplicitSchemeCoupled:
     
 class SemiLagrangianSchemeCoupled:
     """ 
+    Semi-lagrangian scheme for coupled equations.
+    
+    Messy :(
     """
     
     def __init__(self, interpMethod="linear"):
         """ 
+        Inputs
+        -------
+        interpMethod : string
+            Gives a key for the interpolation method used by the interpolator. 
+            Default is linear, and higher order interpolation methods come with 
+            time and computational costs.
         """
         self.interpMethod = interpMethod
                 
-        # Store previous time step wind (think of better way?).
+        # Store previous time step wind (for calculation of departure point).
         self.uFieldOld = None 
         self.vFieldOld = None
         
     def __call__(self, funcs, grid, dt, nt):
         """ 
-        """            
+        Semi-lagrangian scheme for coupled equations.
+        
+        This is very messy - I would have liked to clean it up a bit but I ran 
+        out of time. 
+        
+        Inputs
+        -------
+        funcs : list of callable objects
+                RHS of differenetial equation to be solved numerically.
+        grid  : ArakawaCGrid object
+                Object containing the domain and state information for the 
+                problem.
+                Passed by reference.
+        dt    : float
+                Timestep.
+        nt    : int 
+                Current iteration of the simulation.
+        
+        Returns
+        -------
+        None
+        """           
         # Keep a copy of the original grid (won't be updated).
         gridOld = grid.copy()
                         
@@ -200,7 +343,27 @@ class SemiLagrangianSchemeCoupled:
         self.vFieldOld = gridOld.fields["vVelocity"]
             
     def updateField(self, grid, gridOld, func, dt):
-        """ 
+        """
+        Updates the current field (specified by func) based on the 
+        semi-lagrangian method. Would have liked to clean this up but ran 
+        out of time.
+        
+        Inputs
+        -------
+        grid    : ArakawaCGrid object
+                  Object containing domain and state information - this grid 
+                  object is updated after each equation variable is updated.
+        gridOld : ArakawaCGrid object
+                  Object containing domain and state information - this grid 
+                  object is a copy of the original grid that is not updated.
+        func    : BaseEqnSWE object 
+                  RHS of differenetial equation to be solved numerically.
+        dt      : float
+                  Timestep.
+        
+        Returns
+        -------
+        None
         """
         
         # Calculate departure point.
@@ -235,6 +398,24 @@ class SemiLagrangianSchemeCoupled:
         
     def calculateDeparturePoint(self, gridOld, dt, funcName):
         """ 
+        Calculates the departure point using a two-stage method.
+        
+        Inputs
+        -------
+        gridOld : ArakawaCGrid object
+                  Object containing domain and state information - this grid 
+                  object is a copy of the original grid that is not updated.
+        dt      : float
+                  Timestep.
+        funcName: string
+                  Name of the equation.
+        
+        Returns
+        -------
+        Xdp : np array
+              X-departure point.
+        Ydp : np array
+              Y-departure point.
         """
         
         # Find the appropriate grid and fields for the current func.
@@ -292,6 +473,23 @@ class SemiLagrangianSchemeCoupled:
     
     def calculateEtaForcings(self, Xdp, Ydp, func, grid):
         """ 
+        Calculates the forcings for the eta equation.
+        
+        Inputs
+        -------
+        Xdp   : np array
+                X-departure point coordinates.
+        Ydp   : np array
+                Y-departure point coordinates.
+        func  : Eta object 
+                Calculates RHS of eta differential equation.
+        grid  : ArakawaCGrid object
+                Contains domain and state information for the problem.
+        
+        Returns
+        -------
+        forcings : np array
+            Forcing terms of the eta equation calculated at departure point.
         """
         
         # Forcing arguments for equation.
@@ -304,6 +502,23 @@ class SemiLagrangianSchemeCoupled:
         
     def calculateUForcings(self, Xdp, Ydp, fieldDP, func, grid):
         """ 
+        Calculates the forcings for the u-velocity equation.
+        
+        Inputs
+        -------
+        Xdp   : np array
+                X-departure point coordinates.
+        Ydp   : np array
+                Y-departure point coordinates.
+        func  : UVelocity object 
+                Calculates RHS of u-velocity differential equation.
+        grid  : ArakawaCGrid object
+                Contains domain and state information for the problem.
+        
+        Returns
+        -------
+        forcings : np array
+            Forcing terms of the u-velocity equation calculated at departure point.
         """
         
         # Forcing arguments for equation.
@@ -317,6 +532,23 @@ class SemiLagrangianSchemeCoupled:
                 
     def calculateVForcings(self, Xdp, Ydp, fieldDP, func, grid):
         """ 
+        Calculates the forcings for the v-velocity equation.
+        
+        Inputs
+        -------
+        Xdp   : np array
+                X-departure point coordinates.
+        Ydp   : np array
+                Y-departure point coordinates.
+        func  : VVelocity object 
+                Calculates RHS of v-velocity differential equation.
+        grid  : ArakawaCGrid object
+                Contains domain and state information for the problem.
+        
+        Returns
+        -------
+        forcings : np array
+            Forcing terms of the v-velocity equation calculated at departure point.
         """
         
         # Forcing arguments for equations.
@@ -329,18 +561,48 @@ class SemiLagrangianSchemeCoupled:
     
     def interpolate(self, Xdp, Ydp, Xgrid, Ygrid, field):
         """ 
-        Worth considering?
+        Interpolate points from a grid. If points are outside the boundaries of 
+        the given grid, values are extrapolated which is not exactly correct. 
+        But has not been a massive problem, I think because velocities are small.
+        
+        Here I am using RegularGridInterpolator, and am constructing it each 
+        time this function is called, instead of just storing it which might 
+        be more efficient. I did this because I thought that I might create my 
+        own interpolator - if I did this I would just need to change this 
+        function and nothing else.
+        
+        Inputs
+        -------
+        Xdp   : np array
+                X-departure point coordinates.
+        Ydp   : np array
+                Y-departure point coordinates.
+        Xgrid : np array
+                Array containing X coordinates of the interpolation grid.
+        Ygrid : np array 
+                Array containing Y coordinates of the interpolation grid.
+        field : np array
+                Array containing the field values that will be used for the 
+                interpolation.
+        
+        Returns
+        -------
+        Interpolated points
         """
         
+        # Construct the interpolator. 
         interp = RegularGridInterpolator((Ygrid, Xgrid), field, bounds_error=False, 
                                          fill_value=None, 
                                          method=self.interpMethod)
         
+        # Return interpolated values at departure point.
         return interp((Ydp, Xdp))
 
-# TODO: Semi implicit semi lagrangian???
 
 class SemiImplicitSemiLagrangianCoupled(SemiLagrangianSchemeCoupled):
+    """ 
+    Ran out of time for SISL.
+    """
     
     def __init__(self):
         super().__init__()
@@ -352,7 +614,23 @@ class SemiImplicitSemiLagrangianCoupled(SemiLagrangianSchemeCoupled):
 
 def RK4SchemeCoupled_OLD(funcs, grid, dt, nt):
     """ 
-    might be better.
+    Runge-Kutte-4 scheme for coupled equations. Old version.
+    
+    Inputs
+    -------
+    funcs : list of callable objects
+            RHS of differenetial equation to be solved numerically.
+    grid  : ArakawaCGrid object
+            Object containing the domain and state information for the problem.
+            Passed by reference.
+    dt    : float
+            Timestep.
+    nt    : int 
+            Current iteration of the simulation.
+    
+    Returns
+    -------
+    None
     """
     
     # hmm
