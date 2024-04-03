@@ -19,10 +19,13 @@ def calculateEnergy(model):
     """ 
     """
     params = model.eqns[0].params
-    return (np.sum(0.5*params.rho*(model.grid.uField[:, :-1]**2 + 
-                                   model.grid.vField[:-1, :]**2 + 
-                                   params.g*model.grid.hField**2))* 
-            model.grid.dx**2)
+    u = model.grid.uField
+    v = model.grid.vField
+    eta = model.grid.hField
+    
+    term1 = params.H*(np.sum(u**2) + np.sum(v**2))
+    term2 = params.g*np.sum(eta**2)
+    return 0.5*params.rho*model.grid.dx*model.grid.dy*(term1+term2)
 
 def calculateTimestepCFL(c, d):
     """ 
@@ -40,23 +43,23 @@ if __name__ == "__main__":
     grid = ArakawaCGrid(xbounds, nx, periodicX=False)
 
     # Time stepping information.
-    # dt = 0.99*calculateTimestepCFL(100, dx)
-    dt = 10*24*60**2
-    endtime = 30*24*60**2 
+    dt = 0.5*calculateTimestepCFL(100, dx)
+    # dt = 10*24*60**2
+    endtime = 50*24*60**2 
     nt = int(np.ceil(endtime/dt))
     
     # Set up the model and solver.
     # scheme = RK4SchemeCoupled
-    # scheme = forwardBackwardSchemeCoupled
+    scheme = forwardBackwardSchemeCoupled
     # scheme = SemiLagrangianSchemeCoupled()
     model = Model([Eta(), UVelocity(), VVelocity()], grid)
     
-    scheme = SemiImplicitSchemeCoupled(model, dt)
+    # scheme = SemiImplicitSchemeCoupled(model, dt)
     
     solver = Solver(model, scheme, dt, nt)
     
     # Add energy calculator to solver.
-    # solver.addCustomEquations("energy", calculateEnergy)
+    solver.addCustomEquations("energy", calculateEnergy)
         
     #%% Semi implicit class test
     solver.model.grid.resetFields()
@@ -68,21 +71,21 @@ if __name__ == "__main__":
     
     solver.model.setBlobInitialCondition(xL*np.array([0.1, 0.5]), 
                                           ((3*dx)**2*np.array([2, 2])**2), 1*dx)
-    plotContourSubplot(solver.model.grid)
+    # plotContourSubplot(solver.model.grid)
     
     solver.run()
     
     #%% Task D (get plots working here)
     # solver.store = True
     solver.run()
-    # energy = solver.getCustomData("energy")
-    plotContourSubplot(solver.model.grid)
+    energy = solver.getCustomData("energy")
+    # plotContourSubplot(solver.model.grid)
     
-    # # Plot energy.
-    # time = np.arange(0, solver.dt*(solver.nt+1), solver.dt)
-    # plt.figure(figsize=(10, 10))
-    # plt.plot(energy)
-    # plt.show()
+    # Plot energy.
+    time = np.arange(0, solver.dt*(solver.nt+1), solver.dt)
+    plt.figure(figsize=(10, 10))
+    plt.plot(energy)
+    plt.show()
         
     #%% Task E (energy)
     # Half the grid spacing and find new time step.

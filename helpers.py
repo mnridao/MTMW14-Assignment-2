@@ -51,22 +51,14 @@ def calculateEnergyModel(model):
     energy : float
        The energy calculated for the current state of the model.
     """
+        
+    return calculateEnergy(model.grid.uField, model.grid.vField, 
+                           model.grid.hField, model.grid.dx, model.eqns[0].params)
     
-    # Interpolate u and v onto eta grid.
-    u = 0.5*(model.grid.uField[:, :-1] + model.grid.uField[:, 1:])
-    v = 0.5*(model.grid.vField[:-1, :] + model.grid.vField[1:, :])
-    
-    return calculateEnergy(u, v, model.grid.hField, 
-                           model.grid.dx, model.eqns[0].params)
-
-    # return (np.sum(0.5*params.rho*(model.grid.uField[:, :-1]**2 + 
-    #                                model.grid.vField[:-1, :]**2 + 
-    #                                params.g*model.grid.hField**2))* 
-    #         model.grid.dx**2)
-
 def calculateEnergy(u, v, eta, dx, params):
     """
     Calculates the energy of either the numerical or analytical solution.
+    Assumes that the X and Y domains are the same length, i.e. dx == dy.
     
     Inputs
     -------
@@ -87,7 +79,8 @@ def calculateEnergy(u, v, eta, dx, params):
        The energy calculated for the current state of the model.
     """
     
-    return (np.sum(0.5*params.rho*(u**2 + v**2 + params.g*eta**2))*dx**2)
+    return 0.5*params.rho*dx**2*(params.H*(np.sum(u**2) + np.sum(v**2)) + 
+                                 params.g*np.sum(eta**2))
 
 def calculateTimestepCFL(c, d):
     """ 

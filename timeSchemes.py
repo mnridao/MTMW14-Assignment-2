@@ -422,8 +422,10 @@ class SemiLagrangianSchemeCoupled:
         if funcName == "eta":
             
             # Eta stored at half cell points.
-            U = 0.5*(gridOld.uField[:, :-1] + gridOld.uField[:, 1:])
-            V = 0.5*(gridOld.vField[:-1, :] + gridOld.vField[1:, :])
+            # U = 0.5*(gridOld.uField[:, :-1] + gridOld.uField[:, 1:])
+            # V = 0.5*(gridOld.vField[:-1, :] + gridOld.vField[1:, :])
+            U = gridOld.uOnEtaField()
+            V = gridOld.vOnEtaField()
             
             X = gridOld.Xmid 
             Y = gridOld.Ymid

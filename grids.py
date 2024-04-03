@@ -123,15 +123,23 @@ class ArakawaCGrid:
     def detadyField(self):
         """ 
         """
-        
         return self.backwardGradientFieldY(self.hField)
     
     def vorticityField(self):
         """ 
         """
-
         return (self.forwardGradientFieldX(self.vField) - 
                 self.forwardGradientFieldY(self.uField))
+    
+    def uOnEtaField(self):
+        """ 
+        """
+        return 0.5*(self.uField[:, :-1] + self.uField[:, 1:])
+        
+    def vOnEtaField(self):
+        """ 
+        """
+        return 0.5*(self.vField[:-1, :] + self.vField[1:, :])
     
     def vOnUField(self):
         """ 
