@@ -43,18 +43,19 @@ if __name__ == "__main__":
     grid = ArakawaCGrid(xbounds, nx, periodicX=False)
 
     # Time stepping information.
-    dt = 0.5*calculateTimestepCFL(100, dx)
-    # dt = 10*24*60**2
-    endtime = 50*24*60**2 
+    # dt = 0.5*calculateTimestepCFL(100, dx)
+    # dt = 200*24*60**2
+    dt = 15*24*60**2
+    endtime = 30*24*60**2 
     nt = int(np.ceil(endtime/dt))
     
     # Set up the model and solver.
     # scheme = RK4SchemeCoupled
-    scheme = forwardBackwardSchemeCoupled
+    # scheme = forwardBackwardSchemeCoupled
     # scheme = SemiLagrangianSchemeCoupled()
     model = Model([Eta(), UVelocity(), VVelocity()], grid)
     
-    # scheme = SemiImplicitSchemeCoupled(model, dt)
+    scheme = SemiImplicitSchemeCoupled(model, dt)
     
     solver = Solver(model, scheme, dt, nt)
     
@@ -64,16 +65,31 @@ if __name__ == "__main__":
     #%% Semi implicit class test
     solver.model.grid.resetFields()
     
-    solver.model.activateWindStress(False)
-    solver.model.activateDamping(False)
-    solver.model.setf0(0)
-    solver.model.setBeta(0)
+    # solver.model.activateWindStress(False)
+    # solver.model.activateDamping(False)
+    # solver.model.setf0(0)
+    # solver.model.setBeta(0)
     
-    solver.model.setBlobInitialCondition(xL*np.array([0.1, 0.5]), 
-                                          ((3*dx)**2*np.array([2, 2])**2), 1*dx)
+    # solver.model.setBlobInitialCondition(xL*np.array([0.1, 0.5]), 
+    #                                       ((3*dx)**2*np.array([2, 2])**2), 1*dx)
     # plotContourSubplot(solver.model.grid)
+    # grid = solver.model.grid
+    # gridU = (solver.model.grid.X[:-1, :]/1e3, 
+    #          0.5*(solver.model.grid.Y[:-1, :] + solver.model.grid.Y[1:, :])/1e3)
+    # gridV = (0.5*(solver.model.grid.X[:, :-1] + solver.model.grid.X[:, 1:])/1e3, 
+    #          solver.model.grid.Y[:, :-1]/1e3)
+    # gridH = (solver.model.grid.Xmid/1e3, solver.model.grid.Ymid/1e3)
+    # plotContourSubplot(grid.uField, grid.vField, grid.hField, gridU, gridV, gridH)
     
     solver.run()
+    import matplotlib.pyplot as plt
+    
+    plt.imshow(solver.model.grid.hField)
+    plt.colorbar(label='Height [m]')  # Adding a colorbar with label
+    plt.xlabel('X')
+    plt.ylabel('Y')
+    plt.title('Height Field')
+    plt.show()
     
     #%% Task D (get plots working here)
     # solver.store = True

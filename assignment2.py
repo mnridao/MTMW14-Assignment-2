@@ -6,7 +6,7 @@ Student ID: 31827379
 
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy.interpolate import RegularGridInterpolator
+import time
 
 from analyticalSolution import analyticalSolution
 from equations import UVelocity, VVelocity, Eta
@@ -27,13 +27,13 @@ def runTaskC():
     height perturbation (eta).
     """
     # Compute the analytical solution with eta0 = 0.
-    X = solver.model.grid.Xmid
-    Y = solver.model.grid.Ymid
     params = solver.model.eqns[0].params
-    uSol, vSol, etaSol = analyticalSolution(X, Y, xbounds[1], params, eta0=0.)
+    uSol, vSol, etaSol = analyticalSolution(solver.model.grid, params)
     
     # Plot the results.
-    plotters.plotContourSubplot(uSol, vSol, etaSol, (X/1e3, Y/1e3))
+    grid = solver.model.grid
+    plotters.plotContourSubplot(uSol, vSol, etaSol, 
+                                grid.uGrid(), grid.vGrid(), grid.etaGrid())
 
 def runTaskD1():
     """ 
@@ -50,16 +50,113 @@ def runTaskD1():
     
     # Plot results.
     plotters.plotSolutionSectionsFromGrid(solver.model.grid)
+
+def runTaskD2():
+    """ 
+    Runs the solver until steady state, calculated as 40 days in Task E 
+    (Task D2).
+    """
     
+    # Run the solver using global variables.
+    solver.model.grid.resetFields()
+    solver.run()
+    
+    # Plot the steady state and compare with the analytical solution.
+    plotters.plotSteadyStateWithAnalytical(solver.model)
+                
+def runTaskD3():
+    """
+    Without resetting the solver, calculates the energy difference between the 
+    analytical and numerical solution (Task D3).
+    """
+    
+    # Run the solver.
+    solver.model.grid.resetFields()
+    solver.run()
+    
+    # Calculate the analytical solution.
+    eta0 = helpers.calculateEta0(model.grid.hField)
+    uSS, vSS, etaSS = analyticalSolution(model.grid, model.eqns[0].params, eta0)
+    
+    # Calculate the difference fields.    
+    uDiff = model.grid.uField - uSS
+    vDiff = model.grid.vField - vSS
+    hDiff = model.grid.hField - etaSS
+    
+    uDiffNormalised = np.abs(uDiff) / np.max(np.abs(uDiff))
+    vDiffNormalised = np.abs(vDiff) / np.max(np.abs(vDiff))
+    hDiffNormalised = np.abs(hDiff) / np.max(np.abs(hDiff))
+        
+    # Plot the difference fields.
+    grid = solver.model.grid
+    plotters.plotContourSubplot(uDiff, vDiff, hDiff, 
+                                grid.uGrid(), grid.vGrid(), grid.etaGrid(), 
+                                model.grid.uField, model.grid.vField, model.grid.hField,
+                                levels=20)
+    
+    plotters.plotContourSubplot(uDiffNormalised, vDiffNormalised, hDiffNormalised, 
+                                grid.uGrid(), grid.vGrid(), grid.etaGrid(), 
+                                model.grid.uField, model.grid.vField, model.grid.hField)
+        
+    # Calculate the energy difference between numerical and analytical solutions.
+    energyDiff = helpers.calculateEnergy(uDiff, vDiff, hDiff, solver.model.grid.dx, 
+                                         solver.model.eqns[0].params)
+    
+    print(f"Energy difference is {energyDiff:.2e} J")
+
+def runTaskE():
+    """ 
+    """
+    
+    dxs = [200e3, 100e3, 50e3, 25e3, 20e3, 10e3, 5e3]
+    energyDiffs, energy, timeTaken = [], [], []
+    
+    # Iterate through different values of dx and calculate energy.
+    for i, dxi in enumerate(dxs):
+        
+        # Create new grid.
+        nx = int((xbounds[1] - xbounds[0])/dxi)
+        solver.model.grid = ArakawaCGrid(xbounds, nx, periodicX=False)
+        
+        # Create new timestep from CFL.
+        dt = 0.9*helpers.calculateTimestepCFL(100, dxi)
+        solver.setNewTimestep(dt, endtime)
+        
+        # Add the energy equation to be evaluated each time step.
+        solver.addCustomEquations("energy", helpers.calculateEnergyModel)
+        
+        # Record the CPU time to run the solver.
+        start = time.process_time()
+        solver.run()
+        timeTaken.append(time.process_time() - start)
+        energy.append(solver.getCustomData("energy"))
+        
+        # Calculate energy difference at steady state (to analytical).
+        energyDiffs.append(helpers.calculateEnergyDifference(solver.model))
+    
+    # Plots for Task E.
+    plotters.plotEnergiesTaskE(dxs, energy, energyDiffs, timeTaken, model, endtime)
+
+def runAndPlotSchemesSteadyState():
+    """ 
+    """
+    # Get the storage arrays for the fields after 40 days.
+    hFields, uFields, vFields = helpers.runAllSchemesForNDays(solver, 40)
+    
+    # Plot the results.
+    schemes = ["Forward-backward", "Runge-Kutte-4", "Semi-lagrangian", "Semi-implicit"]
+    plotters.plotContoursSchemes(hFields, uFields, vFields, schemes, solver.model.grid)
+
+
 #### GLOBAL GRID VARIABLES ####
 xbounds = [0, 1e6]
-dx = 50e3
+dx = 25e3
 nx = int((xbounds[1] - xbounds[0])/dx)
 grid = ArakawaCGrid(xbounds, nx, periodicX=False)
 
 #### GLOBAL TIME STEPPING VARIABLES ####
 dt = 0.85*helpers.calculateTimestepCFL(100, dx)
-endtime = 50*24*60**2 
+endtime = 40*24*60**2 
 nt = int(np.ceil(endtime/dt))
 
 #### GLOBAL MODEL AND SOLVER ####
@@ -68,309 +165,266 @@ scheme = helpers.setScheme("forwardBackward")
 solver = Solver(model, scheme, dt, nt)
 
 if __name__ == "__main__":
+    
+    # # Run Task C.    
+    # runTaskC()
+    
+    # # Run Task D.1
+    # runTaskD1()
+    
+    # # Run Task D.2
+    # runTaskD2()
+
+    # # Run Task D.3
+    # runTaskD3()
+    
+    # # Run Task E
+    # runTaskE()
+    
+    print("hello")
+
+    #%%
+    
+    hFields, uFields, vFields = helpers.runAllSchemesForNDays(solver, 40)
+
+    schemes = ["Forward-backward", "Runge-Kutte-4", "Semi-lagrangian", 
+              "Semi-implicit"]
+    #%% Plot the results.
+    from mpl_toolkits.axes_grid1 import make_axes_locatable
+    import matplotlib as mpl
+    
+    levels = 50
+    fontsize = 15
+    ticksize = 12
+    figsize = (12, 10)
+    
+    # Find minimum and maximum values of eta for colorbar.
+    hMin, hMax = hFields.min(), hFields.max()
+    
+    # Calculate analytical solution.
+    eta0 = helpers.calculateEta0(hFields[0, ...])
+    uSS, vSS, etaSS = helpers.analyticalSolution(solver.model.grid, 
+                                                 solver.model.eqns[0].params,
+                                                 eta0)
+    
+    hMin, hMax = (hFields - etaSS).min(), (hFields - etaSS).max()
+    
+    # Plot the height perturbation contours with streamlines.
+    fig, axs = plt.subplots(2, 2, figsize=figsize)
+    
+    # Plot height perturbation contour plot with streamlines in each subplot
+    for i, ax in enumerate(axs.flatten()):
         
-    # Run Task C.    
-    runTaskC()
-    
-    # Run Task D.1
-    runTaskD1()
-    
-    #%% Task E
-    solver.model.grid.resetFields()
-    
-    solver.addCustomEquations("energy", helpers.calculateEnergyModel)
-    solver.run()
-    energy = solver.getCustomData("energy").copy()
-    
-    # Energy at half the timestep.
-    solver.model.grid.resetFields()
-    solver.model.grid = ArakawaCGrid(xbounds, nx*2)
-    
-    dtHalf = 0.85*helpers.calculateTimestepCFL(100, solver.model.grid.dx*0.5)
-    solver.setNewTimestep(dtHalf, endtime)
-    solver.run()
-    energyHalf = solver.getCustomData("energy")
-    
-    #%% Plotting
-    # Calculate energy from analytical solution (eta0 = 0).
-    uSS0, vSS0, etaSS0 = analyticalSolution(solver.model.grid.X, 
-                                            solver.model.grid.Y,
-                                            solver.model.grid.xbounds[1], 
-                                            solver.model.eqns[0].params)
-    energyAnalytical0 = helpers.calculateEnergy(uSS0, vSS0, etaSS0,
-                                                solver.model.grid.dx, 
-                                                solver.model.eqns[0].params)
-    
-    # Interpolate eta onto analytical grid.
-    interpolator = RegularGridInterpolator((solver.model.grid.Ymid[:, 0], solver.model.grid.Xmid[0, :]), 
-                                           solver.model.grid.hField, 
-                                           bounds_error=False, fill_value=None)
-    
-    # Calculate energy from updated analytical solution (eta0 = numerical SS).
-    eta0 = interpolator((solver.model.grid.Y, solver.model.grid.X))
-    uSS, vSS, etaSS = analyticalSolution(solver.model.grid.X, 
-                                          solver.model.grid.Y,
-                                          solver.model.grid.xbounds[1], 
-                                          solver.model.eqns[0].params,
-                                          eta0)
-    energyAnalytical = helpers.calculateEnergy(uSS, vSS, etaSS,
-                                               solver.model.grid.dx, 
-                                               solver.model.eqns[0].params)
+        # Get the fields for the ith time scheme.
+        hField = hFields[i, ...] - etaSS
+        uField = uFields[i, ...] - uSS
+        vField = vFields[i, ...] - vSS
         
-    # Plot energy.
-    time = np.arange(0, dt*(nt + 1), dt)/(24*60**2)
-    plt.plot(figsize=(10, 10))
+        # Interpolate the velocity fields onto the eta field.
+        uOnEta = 0.5*(uField[:, :-1] + uField[:, 1:])
+        vOnEta = 0.5*(vField[:-1, :] + vField[1:, :])
+        
+        cont = ax.contourf(grid.Xmid/1e3, grid.Ymid/1e3, hField,
+                            levels=np.linspace(hMin, hMax, levels)
+                            )
+        
+        # ax.streamplot(grid.Xmid/1000, grid.Ymid/1000, uOnEta, vOnEta, 
+        #                 color='black', linewidth=0.5, arrowsize = 0.8,
+        #                 density=1.1,)
+        ax.set_title(schemes[i], fontsize=fontsize)
+        
+        if i // 2 != 0:
+            ax.set_xlabel("X [km]", fontsize=fontsize)
+        else:
+            ax.set_xticks([])
+        if i % 2 == 0:
+            ax.set_ylabel("Y [km]", fontsize=fontsize)
+        else:
+            ax.set_yticks([])
+
+    plt.subplots_adjust(wspace=0.05, hspace=0.1)
     
-    # Energy from numerical solution.
-    plt.plot(time, energy, linewidth=0.95)
+    # Add a shared colorbar
+    cax,kw = mpl.colorbar.make_axes([ax for ax in axs.flat])
+    plt.colorbar(cont, cax=cax, **kw)
     
-    # Energy from analytical solution with eta0 = 0.
-    plt.plot(time, energyAnalytical0*np.ones_like(time), 'k--', linewidth=0.95)
+    #%%
+
+    plotters.plotAllSchemeSections(grid, hFields, uFields, vFields, 
+                                   uSS, vSS, etaSS, schemes)
     
-    # Energy from analytical solution with eta0 = steady state numerical solution.
-    plt.plot(time, energyAnalytical*np.ones_like(time), 'k', linewidth=0.95)
+    #%%
     
-    # Half grid spacing.
-    timeHalf = np.arange(0, solver.dt*(solver.nt + 1), solver.dt)/(24*60**2)
-    plt.plot(timeHalf, energyHalf, linewidth=0.95)
+    # Do this for dx=50km and dx=25km.
     
-    plt.grid()
-    plt.xlim([time.min(), time.max()])
-    plt.xlabel("Time [days]", fontsize=10)
-    plt.ylabel("Energy [J]", fontsize=10)
-    
-    plt.show()
-    
-    #%% Plot the difference in energy between steady state with grid spacing.
-    endtime = 40*24*60**2 
-    dx0 = 50e3
-    dxScale = np.linspace(0.1, 1, 19)
-    
-    energies, energiesDiff = [], []
-    for i, scale in enumerate(dxScale):
+    s = ["forwardBackward", "rk4", "semiLagrangian", "semiImplicit"]
+    timeTaken, energies, energyDiffs = [], [], []
+    for i, si in enumerate(s):
+        
+        # Reset the fields.
         solver.model.grid.resetFields()
         
-        # Create grid with new resolution.
-        nxi = int((xbounds[1] - xbounds[0])/(dx0*scale))
-        solver.model.grid = ArakawaCGrid(xbounds, nxi)
+        # Select the current scheme.
+        solver.scheme = helpers.setScheme(si, solver.model, dt)
         
-        # Update timestep based on CFL.
-        dti = 0.8*helpers.calculateTimestepCFL(100, dx0*scale)
-        solver.setNewTimestep(dti, endtime)
+        # Add energy equation to be evaluated at each timestep.
+        solver.addCustomEquations("energy", helpers.calculateEnergyModel)
         
-        # Run the model and calculate energy.
+        # Run the solver and record the CPU time.
+        start = time.process_time()
         solver.run()
+        timeTaken.append(time.process_time() - start)
         
-        # Use the finest resolution for the calculation of eta0.
-        if i == 0:
-            interpolator = RegularGridInterpolator((solver.model.grid.Ymid[:, 0], solver.model.grid.Xmid[0, :]), 
-                                                   solver.model.grid.hField, 
-                                                   bounds_error=False, fill_value=None)
-        
-        # Calculate steady state solution on new grid.
-        eta0 = interpolator((solver.model.grid.Y, solver.model.grid.X))
-        uSS, vSS, etaSS = analyticalSolution(solver.model.grid.X, 
-                                              solver.model.grid.Y,
-                                              solver.model.grid.xbounds[1], 
-                                              solver.model.eqns[0].params,
-                                              eta0)
-        
-        # Difference fields.
-        uDiff = solver.model.grid.uField - 0.5*(uSS[1:, :] + uSS[:-1, :])
-        vDiff = solver.model.grid.vField - 0.5*(vSS[:, 1:] + vSS[:, -1:])
-        hDiff = solver.model.grid.hField - 0.25*(etaSS[:-1, :-1] + etaSS[1:, :-1] + etaSS[:-1, 1:] + etaSS[1:, 1:])
-        
-        energyDiff = helpers.calculateEnergy(uDiff, vDiff, hDiff,
-                                             solver.model.grid.dx, 
-                                             solver.model.eqns[0].params)
-        
+        # Get the time evolution of energy.
         energies.append(solver.getCustomData("energy"))
         
-        # Energy difference at steady state.
-        energiesDiff.append(energyDiff)
+        # Calculate the energy difference (to analytical) at steady state.
+        energyDiffs.append(helpers.calculateEnergyDifference(solver.model))
+                
+        # Energy at steady state.
+        
+        # Time taken. 
+#%%
+
+from IPython.display import HTML, display
+import tabulate
+
+data = [[si, f"{ei:.2e}J", f"{ti:.2f}s"] for si, ei, ti in zip(schemes, energyDiffs, timeTaken)]
+table = tabulate.tabulate(data, tablefmt='html')
+
+time = np.arange(0, solver.dt*(solver.nt + 1), solver.dt)/(24*60**2)
+plt.figure(figsize=(10, 10))
+for i, energy in enumerate(energies):
+    plt.plot(time, energy, label=schemes[i])
+plt.grid()
+plt.xlabel("Time [days]", fontsize=fontsize)
+plt.ylabel("Energy [J]", fontsize=fontsize)
+plt.legend(fontsize=fontsize)
+plt.show()
+
+display(HTML(table))
+
+#%% Time stepping stuff.
+
+def varyTimeStepScheme(solver, scheme, dts, endtime, ):
+    """ 
+    """
+    
+    timeTaken, energies, energyDiffs = [], [], []
+    for i, dti in enumerate(dts):
+        
+        # Reset the fields.
+        solver.model.grid.resetFields()
+        
+        # Calculate new nt.
+        start = time.process_time()
+        solver.scheme = helpers.setScheme(scheme, solver.model, dti)
+        initSI = time.process_time() - start
+                
+        solver.setNewTimestep(dti, endtime)
+        
+        # Add energy equation to be evaluated at each timestep.
+        solver.addCustomEquations("energy", helpers.calculateEnergyModel)
+        
+        # Run the solver and record the CPU time.
+        start = time.process_time()
+        solver.run()
+        timeTaken.append(time.process_time() - start)
+        
+        # Get the time evolution of energy.
+        energies.append(solver.getCustomData("energy"))
+        
+        # Calculate the energy difference (to analytical) at steady state.
+        energyDiffs.append(helpers.calculateEnergyDifference(solver.model))
+                
+    return energies, energyDiffs, timeTaken, initSI
+
+def plotTimeStepsTaskG(dts, energyDiffs, timeTaken, schemes):
+    """ 
+    """
+    # Plot the things.
+    figsize = (15, 6)
+    fontsize = 15
+    ticksize = 12
+    
+    fig, axs = plt.subplots(1, 2, figsize=figsize)
+    
+    # Define the length of a day in seconds for scaling.
+    day = 24*60**2
+    
+    # First subplot: Energy differences vs dts
+    for i, si in enumerate(schemes):
+        if si == "forwardBackward" or si == "semiLagrangian":
+            dtsi = dts[:1]
+            markersize=6
+        elif si == "rk4":
+            dtsi = dts[:2]
+            markersize=7
+        else:
+            dtsi = dts
+            markersize=6
+        
+        axs[0].plot(np.array(dtsi)/day, energyDiffs[i], '-o', label=si, 
+                    markersize=markersize)
+        axs[1].plot(np.array(dtsi)/day, timeTaken[i], '-o', label=si)
+    
+    axs[0].set_yscale("log")
+    axs[0].set_xscale("log")
+    axs[0].grid(which="both")
+    axs[0].set_xlabel("$\Delta$t [days]", fontsize=fontsize)
+    axs[0].set_ylabel("Energy difference [J]", fontsize=fontsize)
+    axs[0].set_title("a)", loc="left")
+    axs[0].tick_params(labelsize=ticksize)
+    
+    axs[1].set_xscale("log")
+    # axs[1].set_yscale("log")
+    axs[1].grid(which="both")
+    axs[1].set_xlabel("$\Delta$t [days]", fontsize=fontsize)
+    axs[1].set_ylabel("CPU time [s]", fontsize=fontsize)
+    axs[1].set_title("b)", loc="left")
+    axs[1].tick_params(labelsize=ticksize)
+    axs[1].legend(fontsize=fontsize)
+    
+    # Add labels to first two dots (less than day so confusing with log).
+    axs[1].text((dts[0]+40)/day, timeTaken[2][0]+4, f"$\Delta$t={dts[0]:.0f}s (CFL)",
+                    fontsize=0.9*fontsize, rotation=90, ha='right', va='bottom')
+    axs[1].text((dts[1] + 75)/day, timeTaken[2][0]+2, f"$\Delta$t={dts[1]:.0f}s",
+                    fontsize=0.9*fontsize, rotation=90, ha='right', va='bottom')
+    
+    # Adjust layout
+    plt.tight_layout()
+    plt.show()
+    
+def runTaskG():
+    """ 
+    """
+    day = 24*60**2
+    dts = [helpers.calculateTimestepCFL(100, dx), 250, 10e3, day, 5*day, 10*day, 20*day, 40*day]
+    
+    energies, energyDiffs, timeTaken, initSIs = [], [], [], []    
+    schemes = ["semiImplicit", "semiLagrangian", "rk4", "forwardBackward"]
+    for i, si in enumerate(schemes):
+        if si == "forwardBackward" or si == "semiLagrangian":
+            dtsi = dts[:1]
+        elif si == "rk4":
+            dtsi = dts[:2]
+        else:
+            dtsi = dts
             
-    # Differences in energy
-    plt.figure(figsize=(10, 10))
+        e, eDiff, t, initSI = varyTimeStepScheme(solver, si, dtsi, endtime)
+        
+        # Store the current scheme data (lists are eaaasy).
+        energies.append(e)
+        energyDiffs.append(eDiff)
+        timeTaken.append(t)
+        initSIs.append(initSI)
+        
+        # Do something with energies?
     
-    plt.plot(dx0*dxScale/1000, energiesDiff)
+    print(f"Max semi-implicit inverse matrix construction time: {np.array(initSIs).max()}")
+    print(f"Min semi-implicit inverse matrix construction time: {np.array(initSIs).min()}")
     
-    plt.grid()
-    plt.tick_params(labelsize=12)
-    plt.xlabel("$\Delta$x [km]", fontsize=15)
-    plt.ylabel("Energy difference [J]", fontsize=15)
-    plt.show()
-    
-    
-    #%%
-    # Plot energy.
-    time = np.arange(0, solver.dt*(solver.nt + 1), solver.dt)/(24*60**2)
-    plt.plot(figsize=(10, 10))
-    
-    # Energy from numerical solution.
-    plt.plot(time, energies[-1], linewidth=0.95)
-    
-    # # Energy from analytical solution with eta0 = 0.
-    # plt.plot(time, energyAnalytical0*np.ones_like(time), 'k--', linewidth=0.95)
-    
-    # Energy from analytical solution with eta0 = steady state numerical solution.
-    plt.plot(time, energyAnalytical*np.ones_like(time), 'k', linewidth=0.95)
-    
-    plt.grid()
-    plt.xlim([time.min(), time.max()])
-    plt.xlabel("Time [days]", fontsize=10)
-    plt.ylabel("Energy [J]", fontsize=10)
-    
-    plt.show()
-    
-    #%%
-    
-    # # u vs x along the grid, closest to the southern edge of the basin.
-    # plt.figure(figsize=(10, 10))
-    # plt.plot(solver.model.grid.X[-1, :]/1000, solver.model.grid.uField[-1, :])
-    # plt.grid()
-    
-    # plt.xlabel("X [km]", fontsize=20)
-    # plt.ylabel("U [m/s]", fontsize=20)
-    
-    # plt.xlim([solver.model.grid.X[-1, :].min()/1000,
-    #           solver.model.grid.X[-1, :].max()/1000])
-    # plt.ylim([0, 1.05*solver.model.grid.uField[-1, :].max()])
-    # plt.tick_params(labelsize=15)
-    
-    # # v vs y along the grid, closest to the western edge of the basin. 
-    # plt.figure(figsize=(10, 10))
-    # plt.plot(solver.model.grid.Y[:, 0]/1000, solver.model.grid.vField[:, 0])
-    # plt.grid()
-    
-    # plt.xlabel("Y [km]", fontsize=20)
-    # plt.ylabel("v [m/s]", fontsize=20)
-    
-    # plt.xlim([solver.model.grid.Y[:, 0].min()/1000,
-    #           solver.model.grid.Y[:, 0].max()/1000])
-    # plt.ylim([solver.model.grid.vField[:, 0].min(), 
-    #           1.05*solver.model.grid.vField[:, 0].max()])
-    # plt.tick_params(labelsize=15)
-    
-    # # eta vs x through the middle of the gyre.
-    # plt.figure(figsize=(10, 10))
-    
-    # mid = int(0.5*solver.model.grid.Xmid.shape[0])
-    # plt.plot(solver.model.grid.Xmid[mid, :]/1000, 
-    #          solver.model.grid.hField[mid, :])
-    # plt.grid()
-    
-    # plt.xlabel("X [km]", fontsize=20)
-    # plt.ylabel("$\eta$ [m]", fontsize=20)
-    
-    # plt.xlim([solver.model.grid.Xmid[mid, :].min()/1000,
-    #           solver.model.grid.Xmid[mid, :].max()/1000])
-    # plt.ylim([solver.model.grid.hField[mid, :].min(), 
-    #           1.05*solver.model.grid.hField[mid, :].max()])
-    # plt.tick_params(labelsize=15)
-
-    # # Height perturbation contour plot with streamlines.
-    # plt.figure(figsize=(9, 12))
-    # plt.streamplot(solver.model.grid.Xmid/1000, solver.model.grid.Ymid/1000, 
-    #                solver.model.grid.uOnEtaField(), 
-    #                solver.model.grid.vOnEtaField())
-    # cont = plt.contourf(solver.model.grid.Xmid/1000, 
-    #                     solver.model.grid.Ymid/1000, 
-    #                     solver.model.grid.hField, levels=75)
-    # plt.colorbar(cont, orientation='horizontal', pad=0.08)
-    # plt.tick_params(labelsize=13)
-    # plt.xlabel("X [km]", fontsize=20)
-    # plt.ylabel("Y [km]", fontsize=20)
-    
-    # #%%
-    # fig, axs = plt.subplots(2, 2, figsize=(20, 18))
-
-    # # Plot u vs x along the grid, closest to the southern edge of the basin
-    # axs[0, 0].plot(solver.model.grid.X[-1, :]/1000, solver.model.grid.uField[-1, :])
-    # axs[0, 0].grid()
-    # axs[0, 0].set_xlabel("X [km]", fontsize=20)
-    # axs[0, 0].set_ylabel("U [m/s]", fontsize=20)
-    # axs[0, 0].tick_params(labelsize=15)
-    
-    # # Plot v vs y along the grid, closest to the western edge of the basin
-    # axs[0, 1].plot(solver.model.grid.Y[:, 0]/1000, solver.model.grid.vField[:, 0])
-    # axs[0, 1].grid()
-    # axs[0, 1].set_xlabel("Y [km]", fontsize=20)
-    # axs[0, 1].set_ylabel("v [m/s]", fontsize=20)
-    # axs[0, 1].tick_params(labelsize=15)
-    
-    # # Plot eta vs x through the middle of the gyre
-    # mid = int(0.5 * solver.model.grid.Xmid.shape[0])
-    # axs[1, 0].plot(solver.model.grid.Xmid[mid, :]/1000, solver.model.grid.hField[mid, :])
-    # axs[1, 0].grid()
-    # axs[1, 0].set_xlabel("X [km]", fontsize=20)
-    # axs[1, 0].set_ylabel("$\eta$ [m]", fontsize=20)
-    # axs[1, 0].tick_params(labelsize=15)
-    
-    # # Plot height perturbation contour plot with streamlines
-    # cont = axs[1, 1].contourf(solver.model.grid.Xmid/1000, solver.model.grid.Ymid/1000, solver.model.grid.hField, levels=75)
-    # axs[1, 1].streamplot(solver.model.grid.Xmid/1000, solver.model.grid.Ymid/1000, solver.model.grid.uOnEtaField(), solver.model.grid.vOnEtaField(), color='black')
-    # plt.colorbar(cont, ax=axs[1, 1], orientation='horizontal', pad=0.08)
-    # axs[1, 1].tick_params(labelsize=13)
-    # axs[1, 1].set_xlabel("X [km]", fontsize=20)
-    # axs[1, 1].set_ylabel("Y [km]", fontsize=20)
-    
-    # plt.tight_layout()
-    # plt.show()
-    
-    #%%
-# import matplotlib.pyplot as plt
-# from matplotlib.gridspec import GridSpec
-
-# import matplotlib.pyplot as plt
-# from matplotlib.gridspec import GridSpec
-
-# # Create a 4x2 grid of subplots with appropriate height ratios
-# fig = plt.figure(figsize=(20, 10))
-# gs = GridSpec(3, 3, height_ratios=[1, 1, 1], width_ratios=[2, 1, 5])
-
-# # Plot u vs x along the grid, closest to the southern edge of the basin
-# ax1 = fig.add_subplot(gs[0, :2])
-# ax1.plot(solver.model.grid.X[-1, :]/1000, solver.model.grid.uField[-1, :])
-# ax1.grid()
-# ax1.set_xlabel("X [km]", fontsize=20)
-# ax1.set_ylabel("U [m/s]", fontsize=20)
-# ax1.set_title("a)  ", loc="left", fontsize=20)
-# ax1.tick_params(labelsize=15)
-
-# # Plot v vs y along the grid, closest to the western edge of the basin
-# ax2 = fig.add_subplot(gs[1, :2])
-# ax2.plot(solver.model.grid.Y[:, 0]/1000, solver.model.grid.vField[:, 0])
-# ax2.grid()
-# ax2.set_xlabel("Y [km]", fontsize=20)
-# ax2.set_ylabel("v [m/s]", fontsize=20)
-# ax2.set_title("b) ", loc="left", fontsize=20)
-# ax2.tick_params(labelsize=15)
-
-# # Plot eta vs x through the middle of the gyre
-# mid = int(0.5 * solver.model.grid.Xmid.shape[0])
-# ax3 = fig.add_subplot(gs[2, :2])
-# ax3.plot(solver.model.grid.Xmid[mid, :]/1000, solver.model.grid.hField[mid, :])
-# ax3.grid()
-# ax3.set_xlabel("X [km]", fontsize=20)
-# ax3.set_ylabel("$\eta$ [m]", fontsize=20)
-# ax3.set_title("c) ", loc="left", fontsize=20)
-# ax3.tick_params(labelsize=15)
-
-# # Plot height perturbation contour plot with streamlines
-# ax4 = fig.add_subplot(gs[:, 2])
-# cont = ax4.contourf(solver.model.grid.Xmid/1000, solver.model.grid.Ymid/1000, solver.model.grid.hField, levels=75)
-# ax4.streamplot(solver.model.grid.Xmid/1000, solver.model.grid.Ymid/1000, solver.model.grid.uOnEtaField(), solver.model.grid.vOnEtaField(), color='black')
-# cbar = plt.colorbar(cont, ax=ax4, orientation='vertical', pad=0.08)
-# cbar.ax.tick_params(labelsize=13)
-# cbar.set_label('$\eta$ [m]', fontsize=20)
-# ax4.set_xlabel("X [km]", fontsize=20)
-# ax4.set_ylabel("Y [km]", fontsize=20)
-# ax4.set_title("d), ", loc="left", fontsize=20)
-
-# plt.subplots_adjust(wspace=0.3)  # Adjust the horizontal space between subplots
-# plt.tight_layout()
-# plt.show()
-
-# #%%
-
-# plotters.plotSolutionSectionsFromGrid(solver.model.grid)
+    # Plot the results.
+    plotTimeStepsTaskG(dts, energyDiffs, timeTaken, schemes)
+        
+runTaskG()

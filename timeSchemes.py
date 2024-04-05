@@ -113,7 +113,6 @@ class SemiImplicitSchemeCoupled:
         # Create the implicit matrix that will be used each time step.
         self.createImplicitMatrix(model.grid, model.eqns[0].params, dt)
         
-        
     def __call__(self, funcs, grid, dt, nt):
         """ 
         Semi-implicit scheme for coupled equations. The discretisation scheme 

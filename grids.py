@@ -101,7 +101,22 @@ class ArakawaCGrid:
         
         # Extra field for bottom topography.
         self.hBot = np.zeros_like(self.hField)
+    
+    def uGrid(self):
+        """ 
+        """
+        return (self.X[:-1, :], np.hstack((self.Ymid, self.Ymid[:, 0].reshape(-1, 1))))
         
+    def vGrid(self):
+        """ 
+        """
+        return (np.vstack((self.Xmid, self.Xmid[0, :].reshape(1, -1))), self.Y[:, :-1])
+        
+    def etaGrid(self):
+        """ 
+        """
+        return (self.Xmid, self.Ymid)
+    
     def dudxField(self):
         """ 
         """
