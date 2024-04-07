@@ -4,7 +4,7 @@ MTMW14 Assignment 2
 Student ID: 31827379
 """
 import numpy as np
-from IPython.display import HTML, display
+from IPython.display import Image, HTML, display
 
 from matplotlib.animation import FuncAnimation
 from matplotlib.animation import PillowWriter
@@ -32,6 +32,8 @@ solver = Solver(model, scheme, dt, nt)
 # Remove wind stress and damping.
 solver.model.activateWindStress(False)
 solver.model.activateDamping(False)
+
+savingPdf = False
 
 def displayGravityWave():
     """ 
@@ -76,7 +78,10 @@ def displayGravityWave():
     </div>
     """
     
-    display(HTML(htmlTable))
+    if savingPdf:
+        display(Image("gravityWaveImage.png"))
+    else:
+        display(HTML(htmlTable))
     
 def displayKelvinWave():
     """ 
@@ -120,7 +125,10 @@ def displayKelvinWave():
     </div>
     """
     
-    display(HTML(htmlTable))
+    if savingPdf:
+        display(Image("kelvinWaveImage.png"))
+    else:
+        display(HTML(htmlTable))
 
 def updateSurfaceElevation(frame, ax, X, Y, states):
     """ 

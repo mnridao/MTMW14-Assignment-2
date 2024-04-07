@@ -27,6 +27,20 @@ class Model:
         self.eqns = eqns
         self.grid = grid
     
+    def setTau0(self, tau0):
+        """ 
+        Set the amplitude of the wind stress for the SWE problem.
+        
+        Inputs
+        ------
+        tau0 : float
+               Wind stress amplitude.
+        """
+        
+        # Update the wind stress amplitude for equations in the model.
+        for eqn in self.eqns:
+            eqn.params.tau0 = tau0
+    
     def setH(self, H):
         """ 
         Set the height of the background state for the SWE problem.

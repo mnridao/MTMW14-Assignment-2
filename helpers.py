@@ -5,6 +5,7 @@ Student ID: 31827379
 """
     
 import numpy as np
+import time
 import timeSchemes as schemes
 
 from analyticalSolution import analyticalSolution
@@ -121,11 +122,17 @@ def calculateEta0(hField):
              Array of eta values from the numerical solution.
     """
     
+    # mid = int(0.5*hField.shape[0])
+    # if hField.shape[0] % 2 == 0: 
+    #     return 0.5*(hField[-1, mid-1] + hField[-1, mid])
+    # else:
+    #     return hField[-1, mid]
+    
     mid = int(0.5*hField.shape[0])
     if hField.shape[0] % 2 == 0: 
-        return 0.5*(hField[-1, mid-1] + hField[-1, mid])
+        return 0.5*(hField[mid-1, -1] + hField[mid, -1])
     else:
-        return hField[-1, mid]
+        return hField[mid, -1]
 
 def calculateTimestepCFL(c, d):
     """ 
@@ -179,3 +186,36 @@ def runAllSchemesForNDays(solver, N):
         vFields[i, ...] = solver.model.grid.vField
         
     return hFields, uFields, vFields
+
+def varyTimeStepScheme(solver, scheme, dts, endtime, ):
+    """ 
+    """
+        
+    timeTaken, energies, energyDiffs = [], [], []
+    for i, dti in enumerate(dts):
+        
+        # Reset the fields.
+        solver.model.grid.resetFields()
+        
+        # Calculate new nt.
+        start = time.process_time()
+        solver.scheme = setScheme(scheme, solver.model, dti)
+        initSI = time.process_time() - start
+                
+        solver.setNewTimestep(dti, endtime)
+        
+        # Add energy equation to be evaluated at each timestep.
+        solver.addCustomEquations("energy", calculateEnergyModel)
+        
+        # Run the solver and record the CPU time.
+        start = time.process_time()
+        solver.run()
+        timeTaken.append(time.process_time() - start)
+        
+        # Get the time evolution of energy.
+        energies.append(solver.getCustomData("energy"))
+        
+        # Calculate the energy difference (to analytical) at steady state.
+        energyDiffs.append(calculateEnergyDifference(solver.model))
+                
+    return energies, energyDiffs, timeTaken, initSI

@@ -143,6 +143,8 @@ def plotSolutionSectionsFromGrid(grid):
     cbar.ax.tick_params(labelsize=fontsizeTicks)
     ax2.set_xlabel("X [km]", fontsize=fontsize)
     ax2.set_ylabel("Y [km]", fontsize=fontsize)
+    ax2.set_xlim([grid.xbounds[0]/1e3, grid.xbounds[1]/1e3])
+    ax2.set_ylim([grid.ybounds[0]/1e3, grid.ybounds[1]/1e3])
     ax2.set_title('$\eta$ [m]', fontsize=fontsize)
     
     plt.tight_layout()
@@ -227,6 +229,8 @@ def plotSteadyStateWithAnalytical(model):
     
     cbar.ax.tick_params(labelsize=tickSize)
     cbar.set_label('$\eta$ [m]', fontsize=fontsize)
+    ax4.set_xlim([model.grid.xbounds[0]/1e3, model.grid.xbounds[1]/1e3])
+    ax4.set_ylim([model.grid.ybounds[0]/1e3, model.grid.ybounds[1]/1e3])
     ax4.set_xlabel("X [km]", fontsize=fontsize)
     ax4.set_ylabel("Y [km]", fontsize=fontsize)
     # ax4.set_title("d), ", loc="left", fontsize=fontsize)
@@ -270,7 +274,7 @@ def plotEnergiesTaskE(dxs, energies, energyDiffs, timeTaken, model, endtime):
     figsize=(8.5, 4)
     fontsize=8
     tickSize=7
-    markerSize=0.1
+    markerSize=0.05
     
     # Plot time evolution of energy vs most recent analytical solution.
     fig, axs = plt.subplots(1, 2, figsize=figsize)
@@ -284,8 +288,8 @@ def plotEnergiesTaskE(dxs, energies, energyDiffs, timeTaken, model, endtime):
                     linewidth=0.75)
         
         # Plot analytical energies.
-        axs[0].plot(time, energySS0*np.ones_like(time), 'k--', linewidth=0.75)
-        axs[0].plot(time, energySS*np.ones_like(time), 'k', linewidth=0.75)
+        axs[0].plot(time, energySS0*np.ones_like(time), 'k--', linewidth=0.65)
+        axs[0].plot(time, energySS*np.ones_like(time), 'k', linewidth=0.65)
         
     axs[0].set_xlabel("Time [days]", fontsize=fontsize)
     axs[0].set_ylabel("Energy [J]", fontsize=fontsize)
@@ -298,7 +302,7 @@ def plotEnergiesTaskE(dxs, energies, energyDiffs, timeTaken, model, endtime):
     axs[1].plot([dxi/1000 for dxi in dxs], energyDiffs, 'o-', 
                 label="Energy difference", linewidth=0.75, markeredgewidth=markerSize)
     axs[1].grid(which="both")
-    axs[1].set_yscale("log")
+    # axs[1].set_yscale("log")
     axs[1].set_xlabel("$\Delta$x [km]", fontsize=fontsize)
     axs[1].set_ylabel("Energy difference [J]", fontsize=fontsize)
     axs[1].tick_params(labelsize=tickSize)
@@ -319,7 +323,8 @@ def plotEnergiesTaskE(dxs, energies, energyDiffs, timeTaken, model, endtime):
 
     plt.show()
     
-def plotContoursSchemes(hFields, uFields, vFields, schemes, grid):
+def plotContoursSchemes(hFields, uFields, vFields, schemes, grid,
+                        hConts=None, uConts=None, vConts=None):
     """ 
     """
 
@@ -342,6 +347,9 @@ def plotContoursSchemes(hFields, uFields, vFields, schemes, grid):
         X1, Y1 = grid.etaGrid()
         cont1 = ax1.contourf(X1/1e3, Y1/1e3, hFields[i, ...],
                            levels=np.linspace(hMin, hMax, levels))
+        if type(hConts) != type(None):
+            ax1.contour(X1/1e3, Y1/1e3, hConts[i, ...], colors='black', alpha=0.5)
+        
         ax1.tick_params(labelsize=ticksize)
         ax1.set_xticks([])
         ax1.set_title(s, fontsize=fontsize, loc="left")
@@ -351,6 +359,8 @@ def plotContoursSchemes(hFields, uFields, vFields, schemes, grid):
         X2, Y2 = grid.uGrid()
         cont2 = ax2.contourf(X2/1e3, Y2/1e3, uFields[i, ...],
                            levels=np.linspace(uMin, uMax, levels))
+        if type(uConts) != type(None):
+            ax2.contour(X2/1e3, Y2/1e3, uConts[i, ...], colors='black', alpha=0.5)
         ax2.tick_params(labelsize=ticksize)
         ax2.set_xticks([])
                 
@@ -359,8 +369,10 @@ def plotContoursSchemes(hFields, uFields, vFields, schemes, grid):
         X3, Y3 = grid.vGrid()
         cont3 = ax3.contourf(X3/1e3, Y3/1e3, vFields[i, ...], 
                            levels=np.linspace(vMin, vMax, levels))
+        if type(vConts) != type(None):
+            ax3.contour(X3/1e3, Y3/1e3, vConts[i, ...], colors='black', alpha=0.5)
         ax3.tick_params(labelsize=ticksize)
-        ax3.set_xlabel("Y [km]", fontsize=fontsize)
+        ax3.set_xlabel("X [km]", fontsize=fontsize)
         
         if i != 0:
             ax1.set_yticks([])
@@ -405,7 +417,7 @@ def plotAllSchemeSections(grid, hFields, uFields, vFields, uSS, vSS, etaSS, sche
     # Set parameters here (need to check what looks better).
     fontsize = 15
     ticksize = 12
-    figsize = (15, 5)
+    figsize = (13, 4.5)
             
     # Plot the gyre sections.
     fig, axs = plt.subplots(1, 3, figsize=figsize)
@@ -436,22 +448,141 @@ def plotAllSchemeSections(grid, hFields, uFields, vFields, uSS, vSS, etaSS, sche
     
     axs[0].set_xlabel("X [km]", fontsize=fontsize)
     axs[0].set_ylabel("u [m/s]", fontsize=fontsize)
+    axs[0].set_title("$u$ on southern boundary [m/s]", fontsize=fontsize, loc="left")
     axs[0].set_xlim([grid.xbounds[0]/1e3, grid.xbounds[1]/1e3])
     axs[0].grid()
     axs[0].tick_params(labelsize=ticksize)
     
     axs[1].set_xlabel("Y [km]", fontsize=fontsize)
     axs[1].set_ylabel("v [m/s]", fontsize=fontsize)
+    axs[1].set_title("$v$ on western boundary [m/s]", fontsize=fontsize, loc="left")
     axs[1].set_xlim([grid.xbounds[0]/1e3, grid.xbounds[1]/1e3])
     axs[1].grid()
     axs[1].tick_params(labelsize=ticksize)
     
     axs[2].set_xlabel("X [km]", fontsize=fontsize)
     axs[2].set_ylabel("$\eta$ [m/s]", fontsize=fontsize)
+    axs[2].set_title("$\eta$ through gyre midpoint [m/s]", fontsize=fontsize, loc="left")
     axs[2].set_xlim([grid.xbounds[0]/1e3, grid.xbounds[1]/1e3])
     axs[2].grid()
     axs[2].legend(fontsize=ticksize)
     axs[2].tick_params(labelsize=ticksize)
     
+    plt.tight_layout()
+    plt.show()
+
+def plotHeightContoursRow(hFields, uFields, vFields, schemes, grid, params):
+    """ 
+    """
+    
+    # Set parameters
+    levels = 50
+    fontsize = 15
+    ticksize = 12
+    figsize = (15, 5)
+    
+    # Find minimum and maximum values of eta for colorbar
+    hMin, hMax = hFields.min(), hFields.max()
+    
+    # Calculate analytical solution
+    eta0 = helpers.calculateEta0(hFields[0, ...])
+    uSS, vSS, etaSS = analyticalSolution(grid, params, eta0)
+    
+    # Plot the height perturbation contours with streamlines
+    fig, axs = plt.subplots(1, 3, figsize=figsize)
+    
+    # Plot height perturbation contour plot with streamlines in each subplot
+    for i, ax in enumerate(axs.flatten()):
+        
+        # Get the fields for the ith time scheme
+        hField = hFields[i, ...]
+        uField = uFields[i, ...]
+        vField = vFields[i, ...]
+        
+        # Interpolate the velocity fields onto the eta field
+        uOnEta = 0.5 * (uField[:, :-1] + uField[:, 1:])
+        vOnEta = 0.5 * (vField[:-1, :] + vField[1:, :])
+        
+        cont = ax.contourf(grid.Xmid/1e3, grid.Ymid/1e3, hField,
+                            levels=np.linspace(hMin, hMax, levels))
+        
+        ax.streamplot(grid.Xmid/1000, grid.Ymid/1000, uOnEta, vOnEta, 
+                      color='black', linewidth=0.5, arrowsize=0.8, density=1.1)
+        
+        ax.set_title(schemes[i], fontsize=fontsize)
+        ax.set_xlim([grid.xbounds[0]/1e3, grid.xbounds[1]/1e3])
+        ax.set_ylim([grid.ybounds[0]/1e3, grid.ybounds[1]/1e3])
+        
+        ax.set_xlabel("X [km]", fontsize=fontsize)
+        
+        if i // 1 == 0:
+            ax.set_ylabel("Y [km]", fontsize=fontsize)
+        else:
+            ax.set_yticks([])
+    
+    # Add a colorbar to the right of the last plot
+    cbar_ax = fig.add_axes([0.92, 0.15, 0.02, 0.7])  # [left, bottom, width, height]
+    cbar = fig.colorbar(cont, cax=cbar_ax)
+    cbar.ax.tick_params(labelsize=ticksize)
+    cbar.set_label('$\eta$ [m]', fontsize=fontsize)
+    
+    plt.subplots_adjust(wspace=0.05, hspace=0.1)
+    
+    plt.show()
+
+def plotTimeStepsTaskG(dts, energyDiffs, timeTaken, schemes):
+    """ 
+    """
+    # Plot the things.
+    figsize = (10, 4)
+    fontsize = 15
+    ticksize = 12
+    
+    fig, axs = plt.subplots(1, 2, figsize=figsize)
+    
+    # Define the length of a day in seconds for scaling.
+    day = 24*60**2
+    
+    # First subplot: Energy differences vs dts
+    for i, si in enumerate(schemes):
+        if si == "forwardBackward" or si == "semiLagrangian":
+            dtsi = dts[:1]
+            markersize=5
+        elif si == "rk4":
+            dtsi = dts[:2]
+            markersize=6
+        else:
+            dtsi = dts
+            markersize=5
+        
+        axs[0].plot(np.array(dtsi)/day, energyDiffs[i], '-o', label=si, 
+                    markersize=markersize, linewidth=0.75)
+        axs[1].plot(np.array(dtsi)/day, timeTaken[i], '-o', label=si,
+                    linewidth=0.75)
+    
+    axs[0].set_yscale("log")
+    axs[0].set_xscale("log")
+    axs[0].grid(which="both")
+    axs[0].set_xlabel("$\Delta$t [days]", fontsize=fontsize)
+    axs[0].set_ylabel("Energy difference [J]", fontsize=fontsize)
+    axs[0].set_title("a)", loc="left")
+    axs[0].tick_params(labelsize=ticksize)
+    
+    axs[1].set_xscale("log")
+    # axs[1].set_yscale("log")
+    axs[1].grid(which="both")
+    axs[1].set_xlabel("$\Delta$t [days]", fontsize=fontsize)
+    axs[1].set_ylabel("CPU time [s]", fontsize=fontsize)
+    axs[1].set_title("b)", loc="left")
+    axs[1].tick_params(labelsize=ticksize)
+    axs[1].legend(fontsize=ticksize)
+    
+    # Add labels to first two dots (less than day so confusing with log).
+    axs[1].text((dts[0]+40)/day, timeTaken[2][0]+4, f"$\Delta$t={dts[0]:.0f}s (CFL)",
+                    fontsize=0.9*ticksize, rotation=90, ha='right', va='bottom')
+    axs[1].text((dts[1] + 75)/day, timeTaken[2][0]+2, f"$\Delta$t={dts[1]:.0f}s",
+                    fontsize=0.9*ticksize, rotation=90, ha='right', va='bottom')
+    
+    # Adjust layout
     plt.tight_layout()
     plt.show()

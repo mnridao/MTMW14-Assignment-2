@@ -6,7 +6,8 @@ Student ID: 31827379
 
 import numpy as np
 import matplotlib.pyplot as plt
-import time
+import time 
+from IPython.display import Image, display
 
 from analyticalSolution import analyticalSolution
 from equations import UVelocity, VVelocity, Eta
@@ -17,6 +18,11 @@ from solver import Solver
 import wavesDemo
 import plotters
 import helpers
+
+def displayArakawaGrid():
+    """
+    """
+    display(Image("arakawaCGrid.png"))
 
 def runTaskC():
     """
@@ -40,12 +46,9 @@ def runTaskD1():
     Runs the solver for 1 day (Task D1).
     """
     
-    # Change the endtime to 1 day.
-    endtime = 24*60**2
-    nt = int(np.ceil(endtime/dt))
-    
-    # Create new solver so that other tasks aren't affected.
-    solver = Solver(model, scheme, dt, nt)
+    # Reset solver fields and run.
+    solver.model.grid.resetFields()
+    solver.nt = int(np.ceil(day/solver.dt))
     solver.run()
     
     # Plot results.
@@ -59,6 +62,8 @@ def runTaskD2():
     
     # Run the solver using global variables.
     solver.model.grid.resetFields()
+    solver.nt = int(np.ceil(endtime/solver.dt))
+    
     solver.run()
     
     # Plot the steady state and compare with the analytical solution.
@@ -86,7 +91,13 @@ def runTaskD3():
     uDiffNormalised = np.abs(uDiff) / np.max(np.abs(uDiff))
     vDiffNormalised = np.abs(vDiff) / np.max(np.abs(vDiff))
     hDiffNormalised = np.abs(hDiff) / np.max(np.abs(hDiff))
-        
+    
+    # Calculate the energy difference between numerical and analytical solutions.
+    energyDiff = helpers.calculateEnergy(uDiff, vDiff, hDiff, solver.model.grid.dx, 
+                                         solver.model.eqns[0].params)
+    
+    print(f"Energy difference is {energyDiff:.2e} J")
+    
     # Plot the difference fields.
     grid = solver.model.grid
     plotters.plotContourSubplot(uDiff, vDiff, hDiff, 
@@ -98,11 +109,6 @@ def runTaskD3():
                                 grid.uGrid(), grid.vGrid(), grid.etaGrid(), 
                                 model.grid.uField, model.grid.vField, model.grid.hField)
         
-    # Calculate the energy difference between numerical and analytical solutions.
-    energyDiff = helpers.calculateEnergy(uDiff, vDiff, hDiff, solver.model.grid.dx, 
-                                         solver.model.eqns[0].params)
-    
-    print(f"Energy difference is {energyDiff:.2e} J")
 
 def runTaskE():
     """ 
@@ -110,6 +116,9 @@ def runTaskE():
     
     dxs = [200e3, 100e3, 50e3, 25e3, 20e3, 10e3, 5e3]
     energyDiffs, energy, timeTaken = [], [], []
+    
+    # Make sure the scheme is forward backward.
+    solver.scheme = helpers.setScheme("forwardBackward")
     
     # Iterate through different values of dx and calculate energy.
     for i, dxi in enumerate(dxs):
@@ -121,7 +130,7 @@ def runTaskE():
         # Create new timestep from CFL.
         dt = 0.9*helpers.calculateTimestepCFL(100, dxi)
         solver.setNewTimestep(dt, endtime)
-        
+                
         # Add the energy equation to be evaluated each time step.
         solver.addCustomEquations("energy", helpers.calculateEnergyModel)
         
@@ -137,264 +146,6 @@ def runTaskE():
     # Plots for Task E.
     plotters.plotEnergiesTaskE(dxs, energy, energyDiffs, timeTaken, model, endtime)
 
-def runAndPlotSchemesSteadyState():
-    """ 
-    """
-    # Get the storage arrays for the fields after 40 days.
-    hFields, uFields, vFields = helpers.runAllSchemesForNDays(solver, 40)
-    
-    # Plot the results.
-    schemes = ["Forward-backward", "Runge-Kutte-4", "Semi-lagrangian", "Semi-implicit"]
-    plotters.plotContoursSchemes(hFields, uFields, vFields, schemes, solver.model.grid)
-
-
-#### GLOBAL GRID VARIABLES ####
-xbounds = [0, 1e6]
-dx = 25e3
-nx = int((xbounds[1] - xbounds[0])/dx)
-grid = ArakawaCGrid(xbounds, nx, periodicX=False)
-
-#### GLOBAL TIME STEPPING VARIABLES ####
-dt = 0.85*helpers.calculateTimestepCFL(100, dx)
-endtime = 40*24*60**2 
-nt = int(np.ceil(endtime/dt))
-
-#### GLOBAL MODEL AND SOLVER ####
-model  = Model([Eta(), UVelocity(), VVelocity()], grid)
-scheme = helpers.setScheme("forwardBackward")
-solver = Solver(model, scheme, dt, nt)
-
-if __name__ == "__main__":
-    
-    # # Run Task C.    
-    # runTaskC()
-    
-    # # Run Task D.1
-    # runTaskD1()
-    
-    # # Run Task D.2
-    # runTaskD2()
-
-    # # Run Task D.3
-    # runTaskD3()
-    
-    # # Run Task E
-    # runTaskE()
-    
-    print("hello")
-
-    #%%
-    
-    hFields, uFields, vFields = helpers.runAllSchemesForNDays(solver, 40)
-
-    schemes = ["Forward-backward", "Runge-Kutte-4", "Semi-lagrangian", 
-              "Semi-implicit"]
-    #%% Plot the results.
-    from mpl_toolkits.axes_grid1 import make_axes_locatable
-    import matplotlib as mpl
-    
-    levels = 50
-    fontsize = 15
-    ticksize = 12
-    figsize = (12, 10)
-    
-    # Find minimum and maximum values of eta for colorbar.
-    hMin, hMax = hFields.min(), hFields.max()
-    
-    # Calculate analytical solution.
-    eta0 = helpers.calculateEta0(hFields[0, ...])
-    uSS, vSS, etaSS = helpers.analyticalSolution(solver.model.grid, 
-                                                 solver.model.eqns[0].params,
-                                                 eta0)
-    
-    hMin, hMax = (hFields - etaSS).min(), (hFields - etaSS).max()
-    
-    # Plot the height perturbation contours with streamlines.
-    fig, axs = plt.subplots(2, 2, figsize=figsize)
-    
-    # Plot height perturbation contour plot with streamlines in each subplot
-    for i, ax in enumerate(axs.flatten()):
-        
-        # Get the fields for the ith time scheme.
-        hField = hFields[i, ...] - etaSS
-        uField = uFields[i, ...] - uSS
-        vField = vFields[i, ...] - vSS
-        
-        # Interpolate the velocity fields onto the eta field.
-        uOnEta = 0.5*(uField[:, :-1] + uField[:, 1:])
-        vOnEta = 0.5*(vField[:-1, :] + vField[1:, :])
-        
-        cont = ax.contourf(grid.Xmid/1e3, grid.Ymid/1e3, hField,
-                            levels=np.linspace(hMin, hMax, levels)
-                            )
-        
-        # ax.streamplot(grid.Xmid/1000, grid.Ymid/1000, uOnEta, vOnEta, 
-        #                 color='black', linewidth=0.5, arrowsize = 0.8,
-        #                 density=1.1,)
-        ax.set_title(schemes[i], fontsize=fontsize)
-        
-        if i // 2 != 0:
-            ax.set_xlabel("X [km]", fontsize=fontsize)
-        else:
-            ax.set_xticks([])
-        if i % 2 == 0:
-            ax.set_ylabel("Y [km]", fontsize=fontsize)
-        else:
-            ax.set_yticks([])
-
-    plt.subplots_adjust(wspace=0.05, hspace=0.1)
-    
-    # Add a shared colorbar
-    cax,kw = mpl.colorbar.make_axes([ax for ax in axs.flat])
-    plt.colorbar(cont, cax=cax, **kw)
-    
-    #%%
-
-    plotters.plotAllSchemeSections(grid, hFields, uFields, vFields, 
-                                   uSS, vSS, etaSS, schemes)
-    
-    #%%
-    
-    # Do this for dx=50km and dx=25km.
-    
-    s = ["forwardBackward", "rk4", "semiLagrangian", "semiImplicit"]
-    timeTaken, energies, energyDiffs = [], [], []
-    for i, si in enumerate(s):
-        
-        # Reset the fields.
-        solver.model.grid.resetFields()
-        
-        # Select the current scheme.
-        solver.scheme = helpers.setScheme(si, solver.model, dt)
-        
-        # Add energy equation to be evaluated at each timestep.
-        solver.addCustomEquations("energy", helpers.calculateEnergyModel)
-        
-        # Run the solver and record the CPU time.
-        start = time.process_time()
-        solver.run()
-        timeTaken.append(time.process_time() - start)
-        
-        # Get the time evolution of energy.
-        energies.append(solver.getCustomData("energy"))
-        
-        # Calculate the energy difference (to analytical) at steady state.
-        energyDiffs.append(helpers.calculateEnergyDifference(solver.model))
-                
-        # Energy at steady state.
-        
-        # Time taken. 
-#%%
-
-from IPython.display import HTML, display
-import tabulate
-
-data = [[si, f"{ei:.2e}J", f"{ti:.2f}s"] for si, ei, ti in zip(schemes, energyDiffs, timeTaken)]
-table = tabulate.tabulate(data, tablefmt='html')
-
-time = np.arange(0, solver.dt*(solver.nt + 1), solver.dt)/(24*60**2)
-plt.figure(figsize=(10, 10))
-for i, energy in enumerate(energies):
-    plt.plot(time, energy, label=schemes[i])
-plt.grid()
-plt.xlabel("Time [days]", fontsize=fontsize)
-plt.ylabel("Energy [J]", fontsize=fontsize)
-plt.legend(fontsize=fontsize)
-plt.show()
-
-display(HTML(table))
-
-#%% Time stepping stuff.
-
-def varyTimeStepScheme(solver, scheme, dts, endtime, ):
-    """ 
-    """
-    
-    timeTaken, energies, energyDiffs = [], [], []
-    for i, dti in enumerate(dts):
-        
-        # Reset the fields.
-        solver.model.grid.resetFields()
-        
-        # Calculate new nt.
-        start = time.process_time()
-        solver.scheme = helpers.setScheme(scheme, solver.model, dti)
-        initSI = time.process_time() - start
-                
-        solver.setNewTimestep(dti, endtime)
-        
-        # Add energy equation to be evaluated at each timestep.
-        solver.addCustomEquations("energy", helpers.calculateEnergyModel)
-        
-        # Run the solver and record the CPU time.
-        start = time.process_time()
-        solver.run()
-        timeTaken.append(time.process_time() - start)
-        
-        # Get the time evolution of energy.
-        energies.append(solver.getCustomData("energy"))
-        
-        # Calculate the energy difference (to analytical) at steady state.
-        energyDiffs.append(helpers.calculateEnergyDifference(solver.model))
-                
-    return energies, energyDiffs, timeTaken, initSI
-
-def plotTimeStepsTaskG(dts, energyDiffs, timeTaken, schemes):
-    """ 
-    """
-    # Plot the things.
-    figsize = (15, 6)
-    fontsize = 15
-    ticksize = 12
-    
-    fig, axs = plt.subplots(1, 2, figsize=figsize)
-    
-    # Define the length of a day in seconds for scaling.
-    day = 24*60**2
-    
-    # First subplot: Energy differences vs dts
-    for i, si in enumerate(schemes):
-        if si == "forwardBackward" or si == "semiLagrangian":
-            dtsi = dts[:1]
-            markersize=6
-        elif si == "rk4":
-            dtsi = dts[:2]
-            markersize=7
-        else:
-            dtsi = dts
-            markersize=6
-        
-        axs[0].plot(np.array(dtsi)/day, energyDiffs[i], '-o', label=si, 
-                    markersize=markersize)
-        axs[1].plot(np.array(dtsi)/day, timeTaken[i], '-o', label=si)
-    
-    axs[0].set_yscale("log")
-    axs[0].set_xscale("log")
-    axs[0].grid(which="both")
-    axs[0].set_xlabel("$\Delta$t [days]", fontsize=fontsize)
-    axs[0].set_ylabel("Energy difference [J]", fontsize=fontsize)
-    axs[0].set_title("a)", loc="left")
-    axs[0].tick_params(labelsize=ticksize)
-    
-    axs[1].set_xscale("log")
-    # axs[1].set_yscale("log")
-    axs[1].grid(which="both")
-    axs[1].set_xlabel("$\Delta$t [days]", fontsize=fontsize)
-    axs[1].set_ylabel("CPU time [s]", fontsize=fontsize)
-    axs[1].set_title("b)", loc="left")
-    axs[1].tick_params(labelsize=ticksize)
-    axs[1].legend(fontsize=fontsize)
-    
-    # Add labels to first two dots (less than day so confusing with log).
-    axs[1].text((dts[0]+40)/day, timeTaken[2][0]+4, f"$\Delta$t={dts[0]:.0f}s (CFL)",
-                    fontsize=0.9*fontsize, rotation=90, ha='right', va='bottom')
-    axs[1].text((dts[1] + 75)/day, timeTaken[2][0]+2, f"$\Delta$t={dts[1]:.0f}s",
-                    fontsize=0.9*fontsize, rotation=90, ha='right', va='bottom')
-    
-    # Adjust layout
-    plt.tight_layout()
-    plt.show()
-    
 def runTaskG():
     """ 
     """
@@ -411,7 +162,7 @@ def runTaskG():
         else:
             dtsi = dts
             
-        e, eDiff, t, initSI = varyTimeStepScheme(solver, si, dtsi, endtime)
+        e, eDiff, t, initSI = helpers.varyTimeStepScheme(solver, si, dtsi, endtime)
         
         # Store the current scheme data (lists are eaaasy).
         energies.append(e)
@@ -420,11 +171,147 @@ def runTaskG():
         initSIs.append(initSI)
         
         # Do something with energies?
-    
+        
     print(f"Max semi-implicit inverse matrix construction time: {np.array(initSIs).max()}")
     print(f"Min semi-implicit inverse matrix construction time: {np.array(initSIs).min()}")
     
     # Plot the results.
-    plotTimeStepsTaskG(dts, energyDiffs, timeTaken, schemes)
+    plotters.plotTimeStepsTaskG(dts, energyDiffs, timeTaken, schemes)
+
+def runTaskF1():
+    """ 
+    """
+    plotters.plotHeightContoursRow(hFields[1:, ...], uFields[1:, ...], 
+                                   vFields[1:, ...], schemes[1:], gridF, 
+                                   solver.model.eqns[0].params)
+    
+def runTaskF2():
+    """ 
+    """
+    # Calculate the analytical solution.
+    eta0 = helpers.calculateEta0(hFields[0, ...])
+    uSS, vSS, etaSS = helpers.analyticalSolution(gridF, solver.model.eqns[0].params,
+                                                 eta0)
+    
+    plotters.plotAllSchemeSections(gridF, hFields, uFields, 
+                                   vFields, uSS, vSS, etaSS, schemes)
+    
+
+def runTaskF3():
+    """ 
+    """
+    
+    # Calculate the analytical solution.
+    eta0 = helpers.calculateEta0(hFields[0, ...])
+    uSS, vSS, etaSS = helpers.analyticalSolution(gridF, solver.model.eqns[0].params,
+                                                  eta0)
+    
+    # Plot the difference.
+    uDiffs = uFields - uSS 
+    vDiffs = vFields - vSS 
+    hDiffs = hFields - etaSS
+    
+
+    
+    # Plot the differences.
+    plotters.plotContoursSchemes(hDiffs, uDiffs, vDiffs, schemes, 
+                                 gridF, hFields, uFields, vFields)
+
+#### GLOBAL GRID VARIABLES ####
+xbounds = [0, 1e6]
+dx = 25e3
+nx = int((xbounds[1] - xbounds[0])/dx)
+grid = ArakawaCGrid(xbounds, nx, periodicX=False)
+
+#### GLOBAL TIME STEPPING VARIABLES ####
+dt = 0.85*helpers.calculateTimestepCFL(100, dx)
+day = 24*60**2
+endtime = 40*day
+nt = int(np.ceil(endtime/dt))
+
+#### GLOBAL MODEL AND SOLVER ####
+model  = Model([Eta(), UVelocity(), VVelocity()], grid)
+scheme = helpers.setScheme("forwardBackward")
+solver = Solver(model, scheme, dt, nt)
+
+# This is done globally because it takes my laptop literal hours on jupyter.
+schemes = ["Forward-backward", "Runge-Kutte-4", "Semi-lagrangian", 
+          "Semi-implicit"]
+hFields, uFields, vFields = helpers.runAllSchemesForNDays(solver, 40)
+gridF = solver.model.grid.copy()
+
+#%%
+if __name__ == "__main__":
+    
+    # # Run Task C.    
+    # runTaskC()
+    
+    # Run Task D.1
+    runTaskD1()
+    
+    # Run Task D.2
+    runTaskD2()
+
+    # Run Task D.3
+    runTaskD3()
+    
+    # Run Task E
+    runTaskE()
+    
+    # # Run Task G
+    # runTaskG()
+    
+    # runTaskF1()
+    
+    # runTaskF2()
+    
+    # runTaskF3()
+    
+    print("hello")
+
+    #%%
+    
+#     # hFields, uFields, vFields = helpers.runAllSchemesForNDays(solver, 40)
+
+#     schemes = ["Forward-backward", "Runge-Kutte-4", "Semi-lagrangian", 
+#               "Semi-implicit"]
         
-runTaskG()
+#     #%%
+    
+#     # Do this for dx=50km and dx=25km.
+    
+#     solver.nt = int(np.ceil(endtime/dt))
+    
+#     s = ["forwardBackward", "rk4", "semiLagrangian", "semiImplicit"]
+#     timeTaken, energies, energyDiffs = [], [], []
+#     for i, si in enumerate(s):
+        
+#         # Reset the fields.
+#         solver.model.grid.resetFields()
+        
+#         # Select the current scheme.
+#         solver.scheme = helpers.setScheme(si, solver.model, dt)
+        
+#         # Add energy equation to be evaluated at each timestep.
+#         solver.addCustomEquations("energy", helpers.calculateEnergyModel)
+        
+#         # Run the solver and record the CPU time.
+#         start = time.process_time()
+#         solver.run()
+#         timeTaken.append(time.process_time() - start)
+        
+#         # Get the time evolution of energy.
+#         energies.append(solver.getCustomData("energy"))
+        
+#         # Calculate the energy difference (to analytical) at steady state.
+#         energyDiffs.append(helpers.calculateEnergyDifference(solver.model))
+                
+# #%%
+
+#     from IPython.display import HTML, display
+#     import tabulate
+    
+#     data = [[si, f"{ei:.2e}J", f"{ti:.2f}s"] for si, ei, ti in zip(schemes, energyDiffs, timeTaken)]
+#     table = tabulate.tabulate(data, tablefmt='html')
+        
+#     display(HTML(table))

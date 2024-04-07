@@ -43,19 +43,19 @@ if __name__ == "__main__":
     grid = ArakawaCGrid(xbounds, nx, periodicX=False)
 
     # Time stepping information.
-    # dt = 0.5*calculateTimestepCFL(100, dx)
+    dt = 0.99*calculateTimestepCFL(100, dx)
     # dt = 200*24*60**2
-    dt = 15*24*60**2
+    # dt = 15*24*60**2
     endtime = 30*24*60**2 
     nt = int(np.ceil(endtime/dt))
     
     # Set up the model and solver.
     # scheme = RK4SchemeCoupled
     # scheme = forwardBackwardSchemeCoupled
-    # scheme = SemiLagrangianSchemeCoupled()
+    scheme = SemiLagrangianSchemeCoupled()
     model = Model([Eta(), UVelocity(), VVelocity()], grid)
     
-    scheme = SemiImplicitSchemeCoupled(model, dt)
+    # scheme = SemiImplicitSchemeCoupled(model, dt)
     
     solver = Solver(model, scheme, dt, nt)
     
@@ -93,15 +93,19 @@ if __name__ == "__main__":
     
     #%% Task D (get plots working here)
     # solver.store = True
+    solver.model.grid.resetFields()
+    solver.model.setTau0(1)
     solver.run()
     energy = solver.getCustomData("energy")
     # plotContourSubplot(solver.model.grid)
     
-    # Plot energy.
-    time = np.arange(0, solver.dt*(solver.nt+1), solver.dt)
-    plt.figure(figsize=(10, 10))
-    plt.plot(energy)
-    plt.show()
+    # # Plot energy.
+    # time = np.arange(0, solver.dt*(solver.nt+1), solver.dt)
+    # plt.figure(figsize=(10, 10))
+    # plt.plot(energy)
+    # plt.show()
+    
+    plt.imshow(solver.model.grid.hField)
         
     #%% Task E (energy)
     # Half the grid spacing and find new time step.
