@@ -8,10 +8,28 @@ import numpy as np
     
 class ArakawaCGrid:
     """
+    Class that contains the information stored on the Arakawa-C grid. Also 
+    responsible for manipulating information stored on the grid (maybe it 
+    shouldn't be).
     """
     
     def __init__(self, xbounds, nx, ybounds=None, ny=None, periodicX=False):
         """ 
+        Inputs
+        -------
+        xbounds   : list 
+                    Contains the lower and upper bounds of the x-domain.
+        nx        : int 
+                    Number of grid points in the x direction.
+        ybounds   : list or None 
+                    Contains the lower and upper bounds of the y-domain. If 
+                    this is None, it is set equal to xbounds.
+        ny        : int or None 
+                    Number of grid points in the y direction. If this is None, 
+                    it is set equal to nx.
+        periodicX : bool or None
+                    Specifies whether periodic boundary conditions should be 
+                    set in the x-direction. Default is False.
         """
         
         # Number of grid points.
@@ -38,6 +56,9 @@ class ArakawaCGrid:
     
     def copy(self):
         """ 
+        Makes a copy of the grid. I don't really like this, but I have made 
+        some questionable decisions regarding the implementation of my 
+        semi-lagrangian and semi-implicit schemes.
         """
         
         # Create grid object.
@@ -58,6 +79,7 @@ class ArakawaCGrid:
             
     def createGrid(self):
         """ 
+        Sets up the full and half grid points of the Arakawa-C grid.
         """
         
         # Number of points in grid (depends on boundary conditions).
@@ -83,6 +105,8 @@ class ArakawaCGrid:
         
     def resetFields(self):
         """ 
+        Resets the fields of the prognostic variables to zero, allowing the 
+        grid to be used again in the solver.
         """
         
         # Number of points in grid (depends on boundary conditions).
@@ -104,60 +128,75 @@ class ArakawaCGrid:
     
     def uGrid(self):
         """ 
+        Returns the grid points used by the u-velocity field.
         """
         return (self.X[:-1, :], np.hstack((self.Ymid, self.Ymid[:, 0].reshape(-1, 1))))
         
     def vGrid(self):
         """ 
+        Returns the grid points used by the v-velocity field.
         """
         return (np.vstack((self.Xmid, self.Xmid[0, :].reshape(1, -1))), self.Y[:, :-1])
         
     def etaGrid(self):
         """ 
+        Returns the grid points used by the eta field.
         """
         return (self.Xmid, self.Ymid)
     
     def dudxField(self):
         """ 
+        Returns the gradient of the u-velocity field in the x-direction. This 
+        is on the eta grid.
         """
-        
         return self.forwardGradientFieldX(self.uField)
             
     def dvdyField(self):
-        """ 
         """
-        
+        Returns the gradient of the v-velocity field in the y-direction. This 
+        is on the eta grid.
+        """
         return self.forwardGradientFieldY(self.vField)
         
     def detadxField(self):
-        """ 
         """
-        
+        Returns the gradient of the eta field in the x direction. This is on 
+        the full grid points in the x direction, and half grid points in the
+        y direction.
+        """
         return self.backwardGradientFieldX(self.hField)
     
     def detadyField(self):
         """ 
+        Returns the gradient of the eta field in the y direction. This is on 
+        the half grid points in the x direction, and full grid points in the
+        y direction.
         """
         return self.backwardGradientFieldY(self.hField)
     
     def vorticityField(self):
         """ 
+        Returns the vorticity field. Thought I would have made some Rossby 
+        waves by now :(
         """
         return (self.forwardGradientFieldX(self.vField) - 
                 self.forwardGradientFieldY(self.uField))
     
     def uOnEtaField(self):
         """ 
+        Returns the u-velocity field interpolated onto the eta grid.
         """
         return 0.5*(self.uField[:, :-1] + self.uField[:, 1:])
         
     def vOnEtaField(self):
         """ 
+        Returns the v-velocity field interpolated onto the eta grid.
         """
         return 0.5*(self.vField[:-1, :] + self.vField[1:, :])
     
     def vOnUField(self):
         """ 
+        Returns the v-velocity field interpolated onto the u-grid.
         """
         
         # If using reflective boundary conditions we only want interior points.
@@ -181,6 +220,7 @@ class ArakawaCGrid:
     
     def uOnVField(self):
         """ 
+        Returns the u-velocity field interpolated onto the v-grid.
         """
         
         # If using reflective boundary conditions we only want interior points.
@@ -203,6 +243,7 @@ class ArakawaCGrid:
     
     def forwardGradientFieldX(self, field):
         """ 
+        Calculates the forward gradient of field in the x-direction.
         """
         
         # Calculates field based on periodic boundary conditions.
@@ -214,6 +255,9 @@ class ArakawaCGrid:
     
     def backwardGradientFieldX(self, field):
         """ 
+        Calculates the backward gradient of field in the x-direction. There is 
+        a lot of repetition here, I got very tired and never came back here. I 
+        am rediscovering these functions now that I am having to comment them.
         """
         
         # Calculates field based on periodic boundary conditions.
@@ -225,6 +269,7 @@ class ArakawaCGrid:
     
     def forwardGradientFieldY(self, field):
         """ 
+        Calculates the forward gradient of field in the y-direction.
         """
         
         # Calculates field based on periodic boundary conditions.
@@ -236,6 +281,7 @@ class ArakawaCGrid:
     
     def backwardGradientFieldY(self, field):
         """ 
+        Calculates the backward gradient of field in the y-direction.
         """
         # Calculates field based on periodic boundary conditions.
         if self.periodicY:
@@ -246,5 +292,6 @@ class ArakawaCGrid:
     
     def interpolateInterior(self, phi):
         """ 
+        Interpolates the interior points.
         """
         return (phi[:-1, :-1] + phi[1:, :-1] + phi[:-1, 1:] + phi[1:, 1:])/4

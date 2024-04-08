@@ -27,6 +27,13 @@ class Model:
         self.eqns = eqns
         self.grid = grid
     
+    def setGamma(self, gamma):
+        """ 
+        Set the magnutide of the drag coefficient.
+        """
+        for eqn in self.eqns:
+            eqn.params.gamma = gamma
+    
     def setTau0(self, tau0):
         """ 
         Set the amplitude of the wind stress for the SWE problem.

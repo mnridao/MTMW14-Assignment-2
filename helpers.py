@@ -6,8 +6,8 @@ Student ID: 31827379
     
 import numpy as np
 import time
-import timeSchemes as schemes
 
+import timeSchemes as schemes
 from analyticalSolution import analyticalSolution
 
 def setScheme(s, model=None, dt=None):
@@ -158,6 +158,14 @@ def calculateTimestepCFL(c, d):
 
 def runAllSchemesForNDays(solver, N):
     """ 
+    Runs all the schemes for N days.
+    
+    # Inputs
+    ---------
+    solver : Solver object
+       Solver that will be used to run problem for each scheme.
+    N      : float
+       Number of days.
     """
     
     # Set up the new number of time steps for the solver.
@@ -172,23 +180,30 @@ def runAllSchemesForNDays(solver, N):
     uFields = np.zeros(shape=(len(s), *solver.model.grid.uField.shape))
     vFields = np.zeros(shape=(len(s), *solver.model.grid.vField.shape))
     
+    # Initialise time array.
+    t = np.zeros(shape=len(s))
+    
     for i, si in enumerate(s):
         # Reset the grid fields.
         solver.model.grid.resetFields()
         
         # Set the current scheme and run (extra args for si).
         solver.scheme = setScheme(si, solver.model, solver.dt)
+        
+        start = time.process_time()
         solver.run()
+        t[i] = time.process_time() - start
         
         # Save the field information.
         hFields[i, ...] = solver.model.grid.hField 
         uFields[i, ...] = solver.model.grid.uField
         vFields[i, ...] = solver.model.grid.vField
         
-    return hFields, uFields, vFields
+    return hFields, uFields, vFields, t
 
 def varyTimeStepScheme(solver, scheme, dts, endtime, ):
     """ 
+    Runs the schemes in scheme and varies the timesteps specified in dts.
     """
         
     timeTaken, energies, energyDiffs = [], [], []

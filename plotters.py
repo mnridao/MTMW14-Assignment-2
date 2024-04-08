@@ -274,22 +274,24 @@ def plotEnergiesTaskE(dxs, energies, energyDiffs, timeTaken, model, endtime):
     figsize=(8.5, 4)
     fontsize=8
     tickSize=7
-    markerSize=0.05
+    markerSize=0.01
     
     # Plot time evolution of energy vs most recent analytical solution.
     fig, axs = plt.subplots(1, 2, figsize=figsize)
 
-    dxsSliced = dxs[::2]
-    energySliced = energies[::2]
+    # dxsSliced = dxs[::2]
+    # energySliced = energies[::2]
+    dxsSliced = dxs
+    energySliced = energies
     for i, e in enumerate(energySliced):
         
         time = np.linspace(0, endtime, e.shape[0])/(24*60**2)
         axs[0].plot(time, e, label=f"$\Delta$x={dxsSliced[i]/1000:.0f}km",
                     linewidth=0.75)
         
-        # Plot analytical energies.
-        axs[0].plot(time, energySS0*np.ones_like(time), 'k--', linewidth=0.65)
-        axs[0].plot(time, energySS*np.ones_like(time), 'k', linewidth=0.65)
+        # # Plot analytical energies.
+        # axs[0].plot(time, energySS0*np.ones_like(time), 'k--', linewidth=0.55)
+        # axs[0].plot(time, energySS*np.ones_like(time), 'k', linewidth=0.55)
         
     axs[0].set_xlabel("Time [days]", fontsize=fontsize)
     axs[0].set_ylabel("Energy [J]", fontsize=fontsize)
@@ -302,7 +304,7 @@ def plotEnergiesTaskE(dxs, energies, energyDiffs, timeTaken, model, endtime):
     axs[1].plot([dxi/1000 for dxi in dxs], energyDiffs, 'o-', 
                 label="Energy difference", linewidth=0.75, markeredgewidth=markerSize)
     axs[1].grid(which="both")
-    # axs[1].set_yscale("log")
+    axs[1].set_yscale("log")
     axs[1].set_xlabel("$\Delta$x [km]", fontsize=fontsize)
     axs[1].set_ylabel("Energy difference [J]", fontsize=fontsize)
     axs[1].tick_params(labelsize=tickSize)
@@ -329,7 +331,7 @@ def plotContoursSchemes(hFields, uFields, vFields, schemes, grid,
     """
 
     fig = plt.figure(figsize=(13, 8))
-    gs = GridSpec(3, 4, figure=fig, width_ratios=[1]*4)
+    gs = GridSpec(3, 3, figure=fig, width_ratios=[1]*3)
         
     levels = 25
     fontsize=15
@@ -415,9 +417,9 @@ def plotAllSchemeSections(grid, hFields, uFields, vFields, uSS, vSS, etaSS, sche
     """
     
     # Set parameters here (need to check what looks better).
-    fontsize = 15
-    ticksize = 12
-    figsize = (13, 4.5)
+    fontsize = 10
+    ticksize = 6
+    figsize = (11, 3)
             
     # Plot the gyre sections.
     fig, axs = plt.subplots(1, 3, figsize=figsize)

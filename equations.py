@@ -9,11 +9,11 @@ import numpy as np
 
 class Parameters:
     """ 
+    Class responsible for storing and updating the parameters of the SWE 
+    problem.
     """
     
     def __init__(self):
-        """ 
-        """        
         
         ## DEFAULT PARAMETERS ##
         
@@ -29,18 +29,23 @@ class Parameters:
                 
     def setDefaultWindStress(self):
         """ 
+        Sets the default wind stress for a subtropical gyre, i.e. easterly 
+        trade winds in the equatorward half of the basin and westerlies in the 
+        poleward half.
         """
         self.setWindStressX("default")
         self.setWindStressY("default")
     
     def turnOffWindStress(self):
         """ 
+        Turns off the wind stress.
         """
         self.setWindStressX("off")
         self.setWindStressY("off")
     
     def setWindStressX(self, key, tau=None):
         """ 
+        Set the wind stress according to a key value.
         """
         if key == "default":
             self.tau0 = 0.2 # Wind stress amplitude [Nm^-2]
@@ -54,6 +59,7 @@ class Parameters:
         
     def setWindStressY(self, key, tau=None):
         """ 
+        Set the vertical component of the wind stress, default is None.
         """
         if key == "default" or key == "off":
             self.tauY = lambda Y: np.zeros_like(Y)
@@ -63,6 +69,7 @@ class Parameters:
     
     def activateDamping(self, activate, gamma):
         """ 
+        Turn the damping on or off.
         """
         if activate:
             self.gamma = gamma if gamma else 1e-6 # Reset to default if None.
@@ -70,7 +77,8 @@ class Parameters:
             self.gamma = 0.
     
 class BaseEqnSWE(ABC):
-    """ 
+    """
+    Base class for the SWEs.
     """
     
     def __init__(self):
@@ -80,6 +88,7 @@ class BaseEqnSWE(ABC):
     
     def __call__(self, grid):
         """
+        This function is called to evaluate any BaseEqnSWE object.
         """        
         return self._f(grid)
     
@@ -97,15 +106,18 @@ class BaseEqnSWE(ABC):
     
 class UVelocity(BaseEqnSWE):
     """ 
+    U-Velocity equation for the SWEs.
     """
     
     def __init__(self):
         super().__init__() 
         
+        # Stored here so that we can iterate over functions in the schemes.
         self.name = "uVelocity"
             
     def _f(self, grid):
         """ 
+        Calls this function when the equation must be evaluated.
         """        
         # Height perturbation gradient in x-direction.
         detadx = grid.detadxField()
@@ -116,6 +128,8 @@ class UVelocity(BaseEqnSWE):
         
     def forcings(self, u, v, detadx, Y, L):
         """ 
+        Returns the right-hand side of the u-momentum equation for the 
+        shallow water equations. All inputs must be on the u-grid.
         """
         
         # Coriolis parameter (at half grid points - assumes c grid).
@@ -146,15 +160,18 @@ class UVelocity(BaseEqnSWE):
     
 class VVelocity(BaseEqnSWE):
     """ 
+    V-Velocity equation for the SWEs.
     """
     
     def __init__(self):
         super().__init__()
         
+        # Stored here so that we can iterate over functions in the schemes.
         self.name = "vVelocity"
             
     def _f(self, grid):
         """ 
+        Calls this function when the equation must be evaluated.
         """        
         
         # Height perturbation gradient in y-direction.
@@ -169,6 +186,8 @@ class VVelocity(BaseEqnSWE):
         
     def forcings(self, u, v, detady, Y):
         """ 
+        Returns the right-hand side of the v-momentum equation for the 
+        shallow water equations. All inputs must be on the v-grid.
         """
         
         # Coriolis parameter.
@@ -203,15 +222,18 @@ class VVelocity(BaseEqnSWE):
     
 class Eta(BaseEqnSWE):
     """ 
+    Surface elevation equation for the SWEs.
     """
 
     def __init__(self):
         super().__init__()
         
+        # Stored here so that we can iterate over functions in the schemes.
         self.name = "eta"
         
     def _f(self, grid):
         """ 
+        Calls this function when the equation must be evaluated.
         """
                 
         # Calculate new height perturbation.
@@ -219,11 +241,13 @@ class Eta(BaseEqnSWE):
     
     def forcings(self, dudx, dvdy):
         """ 
+        Returns the right-hand side of the continuity equation for the 
+        shallow water equations. All inputs must be on the eta-grid.
         """
         return - self.params.H*(dudx + dvdy)
 
     def explicitTerms(self, grid):
         """ 
+        None for my current implementation of semi-implicit.
         """
-        
         pass

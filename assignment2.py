@@ -5,9 +5,9 @@ Student ID: 31827379
 """
 
 import numpy as np
-import matplotlib.pyplot as plt
 import time 
-from IPython.display import Image, display
+from IPython.display import Image, HTML, display
+import tabulate
 
 from analyticalSolution import analyticalSolution
 from equations import UVelocity, VVelocity, Eta
@@ -39,7 +39,8 @@ def runTaskC():
     # Plot the results.
     grid = solver.model.grid
     plotters.plotContourSubplot(uSol, vSol, etaSol, 
-                                grid.uGrid(), grid.vGrid(), grid.etaGrid())
+                                grid.uGrid(), grid.vGrid(), grid.etaGrid(),
+                                levels=25)
 
 def runTaskD1():
     """ 
@@ -59,7 +60,7 @@ def runTaskD2():
     Runs the solver until steady state, calculated as 40 days in Task E 
     (Task D2).
     """
-    
+        
     # Run the solver using global variables.
     solver.model.grid.resetFields()
     solver.nt = int(np.ceil(endtime/solver.dt))
@@ -74,19 +75,16 @@ def runTaskD3():
     Without resetting the solver, calculates the energy difference between the 
     analytical and numerical solution (Task D3).
     """
-    
-    # Run the solver.
-    solver.model.grid.resetFields()
-    solver.run()
-    
+            
     # Calculate the analytical solution.
-    eta0 = helpers.calculateEta0(model.grid.hField)
-    uSS, vSS, etaSS = analyticalSolution(model.grid, model.eqns[0].params, eta0)
+    eta0 = helpers.calculateEta0(solver.model.grid.hField)
+    uSS, vSS, etaSS = analyticalSolution(solver.model.grid, 
+                                         solver.model.eqns[0].params, eta0)
     
     # Calculate the difference fields.    
-    uDiff = model.grid.uField - uSS
-    vDiff = model.grid.vField - vSS
-    hDiff = model.grid.hField - etaSS
+    uDiff = solver.model.grid.uField - uSS
+    vDiff = solver.model.grid.vField - vSS
+    hDiff = solver.model.grid.hField - etaSS
     
     uDiffNormalised = np.abs(uDiff) / np.max(np.abs(uDiff))
     vDiffNormalised = np.abs(vDiff) / np.max(np.abs(vDiff))
@@ -102,16 +100,22 @@ def runTaskD3():
     grid = solver.model.grid
     plotters.plotContourSubplot(uDiff, vDiff, hDiff, 
                                 grid.uGrid(), grid.vGrid(), grid.etaGrid(), 
-                                model.grid.uField, model.grid.vField, model.grid.hField,
-                                levels=20)
+                                solver.model.grid.uField, 
+                                solver.model.grid.vField, 
+                                solver.model.grid.hField, levels=20)
     
     plotters.plotContourSubplot(uDiffNormalised, vDiffNormalised, hDiffNormalised, 
                                 grid.uGrid(), grid.vGrid(), grid.etaGrid(), 
-                                model.grid.uField, model.grid.vField, model.grid.hField)
+                                solver.model.grid.uField, 
+                                solver.model.grid.vField, 
+                                solver.model.grid.hField)
         
 
 def runTaskE():
     """ 
+    Calculates the energy time series, energy differences and CPU time taken 
+    to run the solver for a range of different grid spacings. This takes a 
+    while to run, on my laptop it takes a few minutes.
     """
     
     dxs = [200e3, 100e3, 50e3, 25e3, 20e3, 10e3, 5e3]
@@ -148,6 +152,9 @@ def runTaskE():
 
 def runTaskG():
     """ 
+    Calculates the energy differences and CPU time taken to run the solver for 
+    a range of different time steps, and for all the different numerical 
+    schemes implemented in this project.
     """
     day = 24*60**2
     dts = [helpers.calculateTimestepCFL(100, dx), 250, 10e3, day, 5*day, 10*day, 20*day, 40*day]
@@ -173,31 +180,112 @@ def runTaskG():
         # Do something with energies?
         
     print(f"Max semi-implicit inverse matrix construction time: {np.array(initSIs).max()}")
-    print(f"Min semi-implicit inverse matrix construction time: {np.array(initSIs).min()}")
-    
+   
     # Plot the results.
     plotters.plotTimeStepsTaskG(dts, energyDiffs, timeTaken, schemes)
 
 def runTaskF1():
     """ 
+    Plots the steady state distribution of the gyre from the non-linear 
+    semi-lagrangian model.
     """
-    plotters.plotHeightContoursRow(hFields[1:, ...], uFields[1:, ...], 
-                                   vFields[1:, ...], schemes[1:], gridF, 
-                                   solver.model.eqns[0].params)
+        
+    # Get the semi lagrangian solutions for 40 days.
+    hField = hFields[2, ...]
+    uField = uFields[2, ...]
+    vField = vFields[2, ...]
+    
+    # Calculate the analytical solution for the linear model.
+    eta0 = helpers.calculateEta0(hField)
+    uSS, vSS, etaSS = analyticalSolution(gridF, 
+                                         solver.model.eqns[0].params, eta0)
+    
+    # Plot steady state distribution of gyres.
+    plotters.plotContourSubplot(uField, vField, hField, 
+                                gridF.uGrid(), gridF.vGrid(), gridF.etaGrid(),
+                                uSS, vSS, etaSS,
+                                levels=25)
     
 def runTaskF2():
+    """ 
+    Plots the semi-lagrangian solution at different cross sections of the gyre.
+    """
+    
+    # Get the semi lagrangian solutions for 40 days.
+    hField = hFields[2, ...]
+    uField = uFields[2, ...]
+    vField = vFields[2, ...]
+    scheme = schemes[2]
+    
+    # Calculate the analytical solution for the linear model.
+    eta0 = helpers.calculateEta0(hField)
+    uSS, vSS, etaSS = analyticalSolution(gridF, 
+                                         solver.model.eqns[0].params, eta0)
+    
+    # Plot the sections
+    plotters.plotAllSchemeSections(gridF, np.expand_dims(hField, 0), 
+                                   np.expand_dims(uField, 0), 
+                                   np.expand_dims(vField, 0), 
+                                   uSS, vSS, etaSS, [scheme])
+    
+
+def runTaskF3():
+    """ 
+    Plots contours of the field differences for the semi-lagrangian numerical 
+    solution.
+    """
+    
+    # Get the semi lagrangian solutions for 40 days.
+    hField = hFields[2, ...]
+    uField = uFields[2, ...]
+    vField = vFields[2, ...]
+    
+    # Calculate the analytical solution for the linear model.
+    eta0 = helpers.calculateEta0(hField)
+    uSS, vSS, etaSS = analyticalSolution(gridF, 
+                                         solver.model.eqns[0].params, eta0)
+    
+    # Plot the energy difference.
+    uDiffs = uField - uSS 
+    vDiffs = vField - vSS 
+    hDiffs = hField - etaSS
+    
+    # Calculate the energy difference between numerical and analytical solutions.
+    energyDiff = helpers.calculateEnergy(uDiffs, vDiffs, hDiffs, gridF.dx, 
+                                         solver.model.eqns[0].params)
+    
+    print(f"Energy difference is {energyDiff:.2e} J")
+        
+    plotters.plotContourSubplot(uDiffs, vDiffs, hDiffs, 
+                                gridF.uGrid(), gridF.vGrid(), gridF.etaGrid(),
+                                uField, vField, hField,
+                                levels=25)
+
+def runTaskG1():
+    """ 
+    
+    """
+    plotters.plotHeightContoursRow(hFields[[0, 1, 3], ...], 
+                                   uFields[[0, 1, 3], ...], 
+                                   vFields[[0, 1, 3], ...], 
+                                   ["Forward-backward", "Runge-Kutte-4", 
+                                    "Semi-implicit"], 
+                                   gridF, 
+                                   solver.model.eqns[0].params)
+    
+def runTaskG2():
     """ 
     """
     # Calculate the analytical solution.
     eta0 = helpers.calculateEta0(hFields[0, ...])
     uSS, vSS, etaSS = helpers.analyticalSolution(gridF, solver.model.eqns[0].params,
-                                                 eta0)
+                                                  eta0)
     
     plotters.plotAllSchemeSections(gridF, hFields, uFields, 
-                                   vFields, uSS, vSS, etaSS, schemes)
+                                    vFields, uSS, vSS, etaSS, schemes)
     
 
-def runTaskF3():
+def runTaskG3():
     """ 
     """
     
@@ -206,17 +294,79 @@ def runTaskF3():
     uSS, vSS, etaSS = helpers.analyticalSolution(gridF, solver.model.eqns[0].params,
                                                   eta0)
     
-    # Plot the difference.
-    uDiffs = uFields - uSS 
-    vDiffs = vFields - vSS 
-    hDiffs = hFields - etaSS
+    hFields2 = hFields[[0, 1, 3], ...]
+    uFields2 = uFields[[0, 1, 3], ...] 
+    vFields2 = vFields[[0, 1, 3], ...]
     
-
+    # Plot the difference.
+    uDiffs = uFields2 - uSS 
+    vDiffs = vFields2 - vSS 
+    hDiffs = hFields2 - etaSS    
     
     # Plot the differences.
-    plotters.plotContoursSchemes(hDiffs, uDiffs, vDiffs, schemes, 
-                                 gridF, hFields, uFields, vFields)
+    schemes2 = ["Forward-backward", "Runge-Kutte-4", "Semi-implicit"]
+    plotters.plotContoursSchemes(hDiffs, uDiffs, vDiffs, schemes2, 
+                                  gridF, hFields2, uFields2, vFields2)
 
+def runTaskGTable():
+    """ 
+    """
+    
+    # Initialise energy difference array.
+    energyDiffs = np.zeros(shape=len(schemes))
+    
+    for i, s in enumerate(schemes):
+        
+        # Calculate the analytical solution.
+        eta0 = helpers.calculateEta0(hFields[i, ...])
+        uSS, vSS, etaSS = helpers.analyticalSolution(gridF, solver.model.eqns[0].params,
+                                                      eta0)        
+        # Plot the difference fields.
+        uDiffs = uFields[i, ...] - uSS 
+        vDiffs = vFields[i, ...] - vSS 
+        hDiffs = hFields[i, ...] - etaSS    
+        
+        # Calculate the energy difference.
+        energyDiffs[i] = helpers.calculateEnergy(uDiffs, vDiffs, hDiffs, 
+                                                 gridF.dx, 
+                                                 solver.model.eqns[0].params)
+    
+    data = [[si, f"{ei:.2e}J", f"{ti:.2f}s"] for si, ei, ti in zip(schemes, energyDiffs, timeTaken)]
+    
+    # Add a header.
+    header = ["Scheme", "Energy Difference", "Time Taken"]
+    data.insert(0, header)
+    
+    table = tabulate.tabulate(data, tablefmt='html')
+        
+    display(HTML(table))
+    
+def runTaskG4():
+    """ 
+    """
+    
+    # Set the timestep to a day.
+    solver.setNewTimestep(day, endtime)
+    
+    # Set the scheme to semi-implicit and run for a day.
+    start = time.process_time()
+    solver.scheme = helpers.setScheme("semiImplicit", solver.model, day)
+    end = time.process_time() - start 
+    
+    print(f"Inverse matrix construction time: {end}s")
+    
+    # Reset the fields and run the solver.
+    solver.model.grid.resetFields()
+    
+    start = time.process_time()
+    solver.run()
+    end = time.process_time() - start
+    
+    print(f"CPU time: {end}s")
+    
+    # Plot sections.
+    plotters.plotSteadyStateWithAnalytical(solver.model)
+        
 #### GLOBAL GRID VARIABLES ####
 xbounds = [0, 1e6]
 dx = 25e3
@@ -237,7 +387,7 @@ solver = Solver(model, scheme, dt, nt)
 # This is done globally because it takes my laptop literal hours on jupyter.
 schemes = ["Forward-backward", "Runge-Kutte-4", "Semi-lagrangian", 
           "Semi-implicit"]
-hFields, uFields, vFields = helpers.runAllSchemesForNDays(solver, 40)
+hFields, uFields, vFields, timeTaken = helpers.runAllSchemesForNDays(solver, 40)
 gridF = solver.model.grid.copy()
 
 #%%
@@ -246,72 +396,32 @@ if __name__ == "__main__":
     # # Run Task C.    
     # runTaskC()
     
-    # Run Task D.1
-    runTaskD1()
+    # # Run Task D.1
+    # runTaskD1()
     
-    # Run Task D.2
-    runTaskD2()
+    # # Run Task D.2
+    # runTaskD2()
 
-    # Run Task D.3
-    runTaskD3()
+    # # Run Task D.3
+    # runTaskD3()
     
-    # Run Task E
-    runTaskE()
+    # # Run Task E
+    # runTaskE()
     
     # # Run Task G
     # runTaskG()
     
+    # # Run Task F
     # runTaskF1()
-    
     # runTaskF2()
-    
     # runTaskF3()
     
+    # # Run Task G
+    # runTaskG1()
+    # runTaskG2()
+    # runTaskG3()
+    # runTaskGTable()
+    # runTaskG()
+    # runTaskG4()
+    
     print("hello")
-
-    #%%
-    
-#     # hFields, uFields, vFields = helpers.runAllSchemesForNDays(solver, 40)
-
-#     schemes = ["Forward-backward", "Runge-Kutte-4", "Semi-lagrangian", 
-#               "Semi-implicit"]
-        
-#     #%%
-    
-#     # Do this for dx=50km and dx=25km.
-    
-#     solver.nt = int(np.ceil(endtime/dt))
-    
-#     s = ["forwardBackward", "rk4", "semiLagrangian", "semiImplicit"]
-#     timeTaken, energies, energyDiffs = [], [], []
-#     for i, si in enumerate(s):
-        
-#         # Reset the fields.
-#         solver.model.grid.resetFields()
-        
-#         # Select the current scheme.
-#         solver.scheme = helpers.setScheme(si, solver.model, dt)
-        
-#         # Add energy equation to be evaluated at each timestep.
-#         solver.addCustomEquations("energy", helpers.calculateEnergyModel)
-        
-#         # Run the solver and record the CPU time.
-#         start = time.process_time()
-#         solver.run()
-#         timeTaken.append(time.process_time() - start)
-        
-#         # Get the time evolution of energy.
-#         energies.append(solver.getCustomData("energy"))
-        
-#         # Calculate the energy difference (to analytical) at steady state.
-#         energyDiffs.append(helpers.calculateEnergyDifference(solver.model))
-                
-# #%%
-
-#     from IPython.display import HTML, display
-#     import tabulate
-    
-#     data = [[si, f"{ei:.2e}J", f"{ti:.2f}s"] for si, ei, ti in zip(schemes, energyDiffs, timeTaken)]
-#     table = tabulate.tabulate(data, tablefmt='html')
-        
-#     display(HTML(table))
